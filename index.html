@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#4a90e2">
+  <meta charset="UTF-8" />
+  <title>Thought Web Prototype</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      font-family: sans-serif;
+    }
+
+    #container {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+
+    #controls {
+      width: 100%;
+      background: #f4f4f4;
+      padding: 10px;
+      box-sizing: border-box;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      flex-shrink: 0;
+    }
+
+    #controls textarea,
+    #controls button {
+      width: 100%;
+      font-size: 16px;
+      padding: 12px;
+      box-sizing: border-box;
+    }
+
+    #cy {
+      flex-grow: 1;
+      width: 100%;
+    }
+
+    @media (min-width: 768px) {
+      #container {
+        flex-direction: row;
+      }
+
+      #controls {
+        width: 300px;
+        height: 100vh;
+        border-right: 1px solid #ccc;
+      }
+
+      #cy {
+        height: 100vh;
+      }
+    }
+  </style>
+</head>
+<script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('service-worker.js')
+      .then(() => console.log('Service Worker registered'))
+      .catch(err => console.error('Service Worker registration failed:', err));
+  }
+</script>
+<body>
+  <div id="container">
+    <div id="controls">
+      <textarea id="thoughtInput" placeholder="Enter a new thought..."></textarea>
+      <button onclick="addNode()">Add New Thought</button>
+      <button onclick="addLinkedNode()">Add Linked Thought</button>
+      <button onclick="linkNodes()">Link Selected Nodes</button>
+      <button onclick="deleteSelected()">Delete Selected Node</button>
+      <button onclick="runAutoLayout()">Auto Re-Layout</button>
+    </div>
+    <div id="cy"></div>
+  </div>
+
+  <script src="https://unpkg.com/cytoscape@3.21.1/dist/cytoscape.min.js"></script>
+	<script>
+  let cy;
+  let nodeId = 0;
+  let selectionQueue = [];
+
+  window.onload = () => {
+    cy = cytoscape({
+      wheelSensitivity: 0.1,
+      minZoom: 0.1,
+      maxZoom: 2,
+      container: document.getElementById('cy'),
+      elements: loadData(),
+      style: [
+        {
+          selector: 'node',
+          style: {
+            shape: 'ellipse',
+            'background-color': '#4a90e2',
+            label: 'data(label)',
+            color: '#fff',
+            'text-valign': 'center',
+            'text-halign': 'center',
+            'text-wrap': 'wrap',
+            'text-max-width': '100px',
+            'font-size': '10px',
+            padding: '5px',
+            'border-width': 0,
+            'border-color': '#ffa500'
+          }
+        },
+        {
+          selector: 'edge',
+          style: {
+            width: 2,
+            'line-color': '#ccc',
+            'target-arrow-color': '#ccc',
+            'target-arrow-shape': 'triangle'
+          }
+        },
+        {
+          selector: '.manual-selected',
+          style: {
+            'border-width': 3,
+            'border-color': '#ffa500'
+          }
+        }
+      ],
+      layout: { name: 'preset' }
+    });
+
+    updateNodeIdCounter();
+    setupCustomSelection();
+  };
+
+  function estimateSphereSize(text) {
+    const base = 80;
+    const perChar = 0.6;
+    const max = 300;
+    return Math.min(max, base + perChar * text.length);
+  }
+
+  function updateNodeIdCounter() {
+    const allIds = cy.nodes().map(n => parseInt(n.id().slice(1))).filter(n => !isNaN(n));
+    nodeId = allIds.length ? Math.max(...allIds) + 1 : 0;
+  }
+
+  function saveData() {
+    const json = cy.elements().jsons();
+    localStorage.setItem('thoughtWeb', JSON.stringify(json));
+  }
+
+  function loadData() {
+    const raw = localStorage.getItem('thoughtWeb');
+    if (!raw) return [];
+    try {
+      const elements = JSON.parse(raw);
+      elements.forEach(el => {
+        if (el.group === 'nodes' && el.data.label) {
+          const size = estimateSphereSize(el.data.label);
+          el.style = { width: `${size}px`, height: `${size}px` };
+        }
+      });
+      return elements;
+    } catch (e) {
+      console.error('Failed to load saved graph:', e);
+      return [];
+    }
+  }
+
+  function runAutoLayout() {
+    cy.layout({ name: 'cose', animate: true }).run();
+  }
+
+  function addNode() {
+    const input = document.getElementById('thoughtInput');
+    const text = input.value.trim();
+    if (!text) return;
+    const id = `n${nodeId++}`;
+    const size = estimateSphereSize(text);
+
+    cy.add({
+      data: { id, label: text },
+      style: {
+        width: `${size}px`,
+        height: `${size}px`
+      }
+    });
+
+    input.value = '';
+    saveData();
+  }
+
+  function addLinkedNode() {
+    if (selectionQueue.length !== 1) {
+      alert('Select exactly one node to link from.');
+      return;
+    }
+
+    const input = document.getElementById('thoughtInput');
+    const text = input.value.trim();
+    if (!text) return;
+
+    const fromId = selectionQueue[0].id();
+    const id = `n${nodeId++}`;
+    const size = estimateSphereSize(text);
+
+    cy.add([
+      {
+        data: { id, label: text },
+        style: {
+          width: `${size}px`,
+          height: `${size}px`
+        }
+      },
+      { data: { id: `e${fromId}_${id}`, source: fromId, target: id } }
+    ]);
+
+    input.value = '';
+    clearSelection();
+    saveData();
+  }
+
+  function linkNodes() {
+    if (selectionQueue.length !== 2) {
+      alert('Select exactly 2 nodes to link.');
+      return;
+    }
+    const [from, to] = selectionQueue;
+    const id = `e${from.id()}_${to.id()}`;
+    cy.add({ data: { id, source: from.id(), target: to.id() } });
+    clearSelection();
+    saveData();
+  }
+
+  function deleteSelected() {
+    selectionQueue.forEach(n => n.remove());
+    clearSelection();
+    saveData();
+  }
+
+  function clearSelection() {
+    selectionQueue.forEach(n => n.removeClass('manual-selected'));
+    selectionQueue = [];
+  }
+
+  function setupCustomSelection() {
+    cy.on('tap', 'node', function (e) {
+      const node = e.target;
+
+      if (selectionQueue.includes(node)) {
+        // Already selected → unselect it
+        node.removeClass('manual-selected');
+        selectionQueue = selectionQueue.filter(n => n !== node);
+      } else {
+        if (selectionQueue.length === 2) {
+          const removed = selectionQueue.shift();
+          removed.removeClass('manual-selected');
+        }
+        node.addClass('manual-selected');
+        selectionQueue.push(node);
+      }
+    });
+  }
+</script>
+
+
+</body>
+</html>
