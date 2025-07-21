@@ -267,6 +267,64 @@
   }
 </script>
 
+<script>
+(function() {
+  // Create invisible backup button
+  const btn = document.createElement('button');
+  btn.textContent = '⬇ Backup';
+  btn.style = `
+    position: fixed;
+    top: 10px;
+    left: 10px;
+    z-index: 9999;
+    padding: 6px 10px;
+    font-size: 12px;
+    border-radius: 4px;
+    background: #eee;
+    border: 1px solid #aaa;
+    display: none;
+  `;
+  btn.onclick = () => {
+    const data = JSON.stringify(localStorage, null, 2);
+    const blob = new Blob([data], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'thoughtWeb-localStorage.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+  document.body.appendChild(btn);
+
+  // Secret tap area to reveal the button
+  let taps = 0;
+  let lastTapTime = 0;
+
+  const secretZone = document.createElement('div');
+  secretZone.style = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 40px;
+    height: 40px;
+    z-index: 9998;
+  `;
+  document.body.appendChild(secretZone);
+
+  secretZone.addEventListener('click', () => {
+    const now = Date.now();
+    if (now - lastTapTime > 3000) taps = 0;
+    lastTapTime = now;
+    taps++;
+    if (taps >= 5) {
+      btn.style.display = 'block';
+      alert('Backup button revealed');
+    }
+  });
+})();
+</script>
 
 </body>
 </html>
