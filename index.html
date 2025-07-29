@@ -156,6 +156,14 @@
     let currentPromptParent = null;
     let currentPromptData = null;
 
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistration().then((registration) => {
+        if (registration) {
+          registration.update(); // force check for updated SW on load
+        }
+      });
+    }
+
     window.onload = () => {
       cy = cytoscape({
         container: document.getElementById('cy'),
