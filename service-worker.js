@@ -1,4 +1,4 @@
-const CACHE_NAME = 'thought-web-cache-v4'; // <-- bump version to invalidate old cache
+const CACHE_NAME = 'thought-web-cache-v5'; // <-- bump version to invalidate old cache
 const urlsToCache = ['/', '/index.html', '/manifest.json']; // always include '/' for proper root caching
 
 // 🔁 Cache assets on install and activate immediately
@@ -12,6 +12,7 @@ self.addEventListener('install', event => {
 
 // ✅ Take control of uncontrolled pages right after activation
 self.addEventListener('activate', event => {
+  console.log('[SW] Activate event');
   event.waitUntil(
     caches.keys().then(cacheNames =>
       Promise.all(
@@ -51,3 +52,9 @@ self.addEventListener('fetch', event => {
     );
   }
 });
+
+function sendMessageToClients(message) {
+  self.clients.matchAll().then(clients => {
+    clients.forEach(client => client.postMessage(`[SW] ${message}`));
+  });
+}
