@@ -23,15 +23,46 @@
     }
 
     #controls {
-	  width: 100%;
-	  background: #f4f4f4;
-	  padding: 10px;
-	  box-sizing: border-box;
-	  display: flex;
-	  flex-direction: column;
-	  gap: 10px;
-	  flex-shrink: 0;
-	}
+  position: relative;
+  width: 100%;
+  background: #f4f4f4;
+  padding: 10px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+#searchModal {
+  position: absolute;
+  top: 100%; /* Places it right below the controls */
+  left: 0;
+  width: 100%;
+  background: #f4f4f4;
+  padding: 10px;
+  box-sizing: border-box;
+  display: none; /* initially hidden */
+  z-index: 10;
+}
+
+#searchModal.visible {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+#searchModal input {
+  flex: 1;
+  min-width: 0;
+}
+
+#searchModal button {
+  padding: 8px 12px;
+  font-size: 16px;
+  width: auto;
+}
 	
 	#searchToolbar {
 	  display: flex;
@@ -144,7 +175,7 @@
       <button onclick="linkNodes()">Link Selected Nodes</button>
       <button onclick="deleteSelected()">Delete Selected Node</button>
 		<button onclick="toggleSearchModal()">🔍 Search</button>
-	    <div id="searchModal" style="display:none; margin-top:8px;">
+	    <div id="searchModal" style="display:none;">
 		<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 6px;">
 		  <input type="text" id="searchInput" placeholder="Search text..." style="width: 60%;" />
 		  <button onclick="prevSearchResult()">←</button>
@@ -291,6 +322,7 @@
 
 	function toggleSearchModal() {
 	const modal = document.getElementById('searchModal');
+	modal.classList.toggle('visible');
 	modal.style.display = (modal.style.display === 'none') ? 'block' : 'none';
 	if (modal.style.display === 'block') {
 		setTimeout(() => document.getElementById('searchInput').focus(), 100);
