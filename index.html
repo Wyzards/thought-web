@@ -146,6 +146,57 @@
     </div>
   </div>
 
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('service-worker.js').then(registration => {
+          logDebug('SW registered');
+
+          // Force the SW to check for updates immediately
+          registration.update();
+
+          // Listen for waiting SW
+          if (registration.waiting) {
+            logDebug('SW waiting. Sending skipWaiting...');
+            registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+          }
+
+          registration.addEventListener('updatefound', () => {
+            const newWorker = registration.installing;
+            logDebug('New SW found.');
+
+            newWorker.addEventListener('statechange', () => {
+              logDebug(`New SW state: ${newWorker.state}`);
+              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                logDebug('New SW installed, refreshing to activate it...');
+                window.location.reload();
+              }
+            });
+          });
+        });
+
+        // Listen for messages from the SW
+        navigator.serviceWorker.addEventListener('message', event => {
+          logDebug(event.data);
+        });
+      });
+    }
+
+    function logDebug(msg) {
+      const el = document.getElementById('debugLog');
+      if (el) {
+        const time = new Date().toLocaleTimeString();
+        el.textContent += `[${time}] ${msg}\n`;
+        el.scrollTop = el.scrollHeight;
+      }
+      console.log(msg);
+    }
+  </script>
+
+  <!-- Add this somewhere near bottom of <body> for in-app logging -->
+  <pre id="debugLog"
+    style="position:fixed;bottom:0;left:0;right:0;max-height:150px;background:#111;color:#0f0;font-size:12px;overflow-y:auto;padding:5px;z-index:9999"></pre>
+
   <script src="https://unpkg.com/cytoscape@3.21.1/dist/cytoscape.min.js"></script>
   <script>
     let cy;
@@ -155,49 +206,6 @@
     let activePrompts = {};
     let currentPromptParent = null;
     let currentPromptData = null;
-
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('service-worker.js')
-          .then(registration => {
-            console.log('Service Worker registered:', registration);
-
-            // Check if there's an updated SW waiting to activate
-            if (registration.waiting) {
-              console.log('Service Worker waiting, sending skipWaiting');
-              registration.waiting.postMessage({ type: 'SKIP_WAITING' });
-            }
-
-            // Listen for updates found
-            registration.onupdatefound = () => {
-              const newWorker = registration.installing;
-              console.log('Service Worker update found:', newWorker);
-
-              newWorker.onstatechange = () => {
-                console.log('New SW state:', newWorker.state);
-
-                if (newWorker.state === 'installed') {
-                  if (navigator.serviceWorker.controller) {
-                    // New update installed, reload page to load new SW and assets
-                    console.log('New SW installed and controlling page, reloading...');
-                    window.location.reload();
-                  } else {
-                    console.log('Service Worker installed for first time');
-                  }
-                }
-              };
-            };
-          })
-          .catch(err => console.error('Service Worker registration failed:', err));
-
-        // Optional: Listen for controlling service worker changing (when skipWaiting activates)
-        navigator.serviceWorker.addEventListener('controllerchange', () => {
-          console.log('Controller changed - new service worker activated');
-          window.location.reload();
-        });
-      });
-    }
-
 
     window.onload = () => {
       cy = cytoscape({
@@ -597,14 +605,6 @@
       cy.on('tap', function (event) {
         if (event.target === cy) clearSelection();
       });
-    }
-  </script>
-
-  <script>
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('service-worker.js')
-        .then(() => console.log('Service Worker registered'))
-        .catch(err => console.error('Service Worker registration failed:', err));
     }
   </script>
 </body>
