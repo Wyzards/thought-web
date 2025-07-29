@@ -1,15 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-  <link rel="manifest" href="manifest.json" />
-  <meta name="theme-color" content="#4a90e2" />
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#4a90e2">
   <meta charset="UTF-8" />
   <title>Thought Web Prototype</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <style>
-    html,
-    body {
+    html, body {
       margin: 0;
       padding: 0;
       height: 100%;
@@ -61,64 +59,6 @@
         height: 100vh;
       }
     }
-
-    #promptButton {
-      position: fixed;
-      bottom: 20px;
-      right: 20px;
-      background: #4a90e2;
-      color: white;
-      border: none;
-      border-radius: 50%;
-      width: 56px;
-      height: 56px;
-      font-size: 24px;
-      display: none;
-      justify-content: center;
-      align-items: center;
-      z-index: 999;
-      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
-    }
-
-    #promptModal {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100vw;
-      height: 100vh;
-      background: rgba(0, 0, 0, 0.6);
-      display: none;
-      align-items: center;
-      justify-content: center;
-      z-index: 10000;
-      /* <- make sure it sits on top of everything */
-    }
-
-
-    #modalContent {
-      background: white;
-      padding: 20px;
-      border-radius: 8px;
-      width: 90%;
-      max-width: 500px;
-      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-
-    #modalContent textarea {
-      width: 100%;
-      height: 100px;
-      margin-bottom: 10px;
-      font-size: 14px;
-    }
-
-    .ghost-node {
-      background-color: #aaa !important;
-      border-style: dashed;
-      opacity: 0.8;
-    }
   </style>
 </head>
 
@@ -135,431 +75,219 @@
     <div id="cy"></div>
   </div>
 
-  <button id="promptButton" onclick="generatePromptNodes()">💡</button>
-
-  <div id="promptModal">
-    <div id="modalContent">
-      <p id="modalPromptText"></p>
-      <textarea id="modalAnswer"></textarea>
-      <button onclick="submitPromptAnswer()">Submit</button>
-      <button onclick="closePromptModal()">Cancel</button>
-    </div>
-  </div>
-
   <script src="https://unpkg.com/cytoscape@3.21.1/dist/cytoscape.min.js"></script>
   <script>
-    let cy;
-    let nodeId = 0;
-    let promptId = 0;
-    let selectionQueue = [];
-    let activePrompts = {};
-    let currentPromptParent = null;
-    let currentPromptData = null;
-
-    window.onload = () => {
-      cy = cytoscape({
-        container: document.getElementById('cy'),
-        elements: loadData(),
-        style: [
-          {
-            selector: 'node',
-            style: {
-              'shape': 'ellipse',
-              'background-color': '#4a90e2',
-              'label': 'data(label)',
-              'color': '#fff',
-              'text-valign': 'center',
-              'text-halign': 'center',
-              'text-wrap': 'wrap',
-              'text-max-width': '100px',
-              'font-size': '10px',
-              'padding': '5px',
-              'border-width': 0,
-              'border-color': '#ffa500'
-            }
-          },
-          {
-            selector: 'edge',
-            style: {
-              'width': 2,
-              'line-color': '#ccc',
-              'target-arrow-color': '#ccc',
-              'target-arrow-shape': 'triangle'
-            }
-          },
-          {
-            selector: '.manual-selected',
-            style: {
-              'border-width': 3,
-              'border-color': '#ffa500'
-            }
-          },
-          {
-            selector: '.ghost-node',
-            style: {
-              'background-color': '#aaa',
-              'border-style': 'dashed',
-              'opacity': 0.8
-            }
-          }
-        ],
-        layout: { name: 'preset' },
-        wheelSensitivity: 0.1
-      });
-
-      updateNodeIdCounter();
-      setupCustomSelection();
-    };
-
-    function estimateSphereSize(text) {
-      const base = 80;
-      const perChar = 0.6;
-      const max = 300;
-      return Math.min(max, base + perChar * text.length);
-    }
-
-    function updateNodeIdCounter() {
-      const allIds = cy.nodes().map(n => parseInt(n.id().slice(1))).filter(n => !isNaN(n));
-      nodeId = allIds.length ? Math.max(...allIds) + 1 : 0;
-    }
-
-    function saveData() {
-      const data = cy.elements().jsons();
-      localStorage.setItem('thoughtMap', JSON.stringify(data));
-      console.log('Graph saved to localStorage');
-    }
-
-    function loadData() {
-      const raw = localStorage.getItem('thoughtMap');
-      if (!raw) {
-        console.warn('No saved data found.');
-        return [];
-      }
-
-      let parsed;
-      try {
-        parsed = JSON.parse(raw);
-      } catch (err) {
-        console.error('Failed to parse saved data:', err);
-        return [];
-      }
-
-      const elements = Array.isArray(parsed)
-        ? parsed
-        : Array.isArray(parsed.elements)
-          ? parsed.elements
-          : [];
-
-      if (!elements.length) {
-        console.warn('No elements found in saved data.');
-        return [];
-      }
-
-      const upgraded = elements.map(el => {
-        if (el.group === 'nodes') {
-          const label = el.data?.label || '';
-
-          // Patch data defaults
-          el.data = {
-            ...el.data,
-            parents: Array.isArray(el.data?.parents) ? el.data.parents : [],
-            children: Array.isArray(el.data?.children) ? el.data.children : [],
-            prompts: Array.isArray(el.data?.prompts) ? el.data.prompts : []
-          };
-
-          // Size handling
-          const size = el.data.size || estimateSphereSize(label);
-          el.data.size = size;
-
-          // Ensure style exists
-          el.style = {
-            ...(el.style || {}),
-            width: `${size}px`,
-            height: `${size}px`
-          };
-        }
-        return el;
-      });
-
-      console.log('Loaded elements:', upgraded);
-      return upgraded;
-    }
-
-
-
-
-
-    function runAutoLayout() {
-      cy.layout({ name: 'cose', animate: true }).run();
-    }
-
-    function addNode(text = null, position = { x: 0, y: 0 }) {
-      const input = document.getElementById('thoughtInput');
-      const content = text || input.value.trim();
-      if (!content) return;
-      const id = `n${nodeId++}`;
-      const size = estimateSphereSize(content);
-
-      cy.add({
-        data: { id, label: content, size },
-        style: { width: `${size}px`, height: `${size}px` },
-        position
-      });
-
-      if (!text) input.value = '';
-      saveData();
-    }
-
-    function addLinkedNode() {
-      if (selectionQueue.length !== 1) return alert('Select exactly one node to link from.');
-      const input = document.getElementById('thoughtInput');
-      const text = input.value.trim();
-      if (!text) return;
-      const fromId = selectionQueue[0].id();
-      const id = `n${nodeId++}`;
-      const size = estimateSphereSize(text);
-
-      cy.add([
-        {
-          data: { id, label: text, size, parentId: fromId },
-          style: { width: `${size}px`, height: `${size}px` },
-          position: findEmptySpotNear(selectionQueue[0].position())
-        },
-        { data: { id: `e${fromId}_${id}`, source: fromId, target: id } }
-      ]);
-
-      input.value = '';
-      clearSelection();
-      saveData();
-    }
-
-    function findEmptySpotNear(pos) {
-      const offset = 150;
-      for (let i = 0; i < 360; i += 30) {
-        const angle = (i * Math.PI) / 180;
-        const x = pos.x + Math.cos(angle) * offset;
-        const y = pos.y + Math.sin(angle) * offset;
-        const conflict = cy.nodes().some(n => {
-          const np = n.position();
-          return Math.hypot(np.x - x, np.y - y) < 100;
-        });
-        if (!conflict) return { x, y };
-      }
-      return { x: pos.x + offset, y: pos.y + offset };
-    }
-
-    function generatePromptNodes() {
-      if (selectionQueue.length !== 1) return;
-
-      const parent = selectionQueue[0];
-      const parentId = parent.id();
-
-      let prompts = parent.data('prompts');
-
-      // If prompts array is missing, generate and attach it
-      if (!Array.isArray(prompts) || prompts.length === 0) {
-        prompts = Array.from({ length: 3 + Math.floor(Math.random() * 3) }, (_, i) => ({
-          id: `p${promptId++}`,
-          text: `Prompt ${i + 1}`,
-          answered: false
-        }));
-
-        parent.data('prompts', prompts);
-        saveData();
-      }
-
-      // Remove any existing ghost nodes for clean re-render
-      cy.nodes('.ghost-node').remove();
-
-      const parentPos = parent.position();
-      const radius = 120;
-
-      // Render ghost nodes for unanswered prompts
-      prompts.forEach((prompt, i) => {
-        if (prompt.answered) return;
-
-        const angle = (2 * Math.PI / prompts.length) * i;
-        const pos = {
-          x: parentPos.x + Math.cos(angle) * radius,
-          y: parentPos.y + Math.sin(angle) * radius
-        };
-
-        cy.add([
-          {
-            group: 'nodes',
-            data: {
-              id: prompt.id,
-              label: prompt.text,
-              isGhost: true,
-              parentId,
-              prompt: prompt.text
-            },
-            position: pos,
-            classes: 'ghost-node'
-          },
-          {
-            group: 'edges',
-            data: {
-              id: `e${parentId}_${prompt.id}`,
-              source: parentId,
-              target: prompt.id
-            }
-          }
-        ]);
-      });
-
-      // Hide prompt lightbulb permanently after first click
-      document.getElementById('promptButton').style.display = 'none';
-    }
-
-
-    function submitPromptAnswer() {
-      const answer = document.getElementById('modalAnswer').value.trim();
-      if (!answer || !currentPromptData || !currentPromptParent) return;
-
-      const pos = currentPromptData.position();
-      const parentId = currentPromptParent.id();
-      const promptIdToRemove = currentPromptData.id();
-
-      // Remove the ghost node
-      cy.remove(currentPromptData);
-
-      // Add real node from answer
-      const size = estimateSphereSize(answer);
-      const newNodeId = `n${nodeId++}`;
-
-      cy.add([
-        {
-          data: {
-            id: newNodeId,
-            label: answer,
-            size,
-            parentId
-          },
-          style: { width: `${size}px`, height: `${size}px` },
-          position: pos
-        },
-        {
-          data: {
-            id: `e${parentId}_${newNodeId}`,
-            source: parentId,
-            target: newNodeId
-          }
-        }
-      ]);
-
-      // Mark the prompt as answered
-      const prompts = currentPromptParent.data('prompts');
-      const updated = prompts.map(p => {
-        if (p.id === promptIdToRemove) return { ...p, answered: true };
-        return p;
-      });
-      currentPromptParent.data('prompts', updated);
-
-      closePromptModal();
-      saveData();
-    }
-
-    function closePromptModal() {
-      document.getElementById('promptModal').style.display = 'none';
-      currentPromptParent = null;
-      currentPromptData = null;
-    }
-
-    function linkNodes() {
-      if (selectionQueue.length !== 2) return alert('Select 2 nodes.');
-      const [from, to] = selectionQueue;
-      cy.add({
-        data: {
-          id: `e${from.id()}_${to.id()}`,
-          source: from.id(),
-          target: to.id()
-        }
-      });
-      clearSelection();
-      saveData();
-    }
-
-    function deleteSelected() {
-      selectionQueue.forEach(n => n.remove());
-      clearSelection();
-      saveData();
-    }
-
-    function clearSelection() {
-      selectionQueue.forEach(n => n.removeClass('manual-selected'));
-      selectionQueue = [];
-      document.getElementById('promptButton').style.display = 'none';
-      cy.nodes('.ghost-node').remove();
-    }
-
-    function setupCustomSelection() {
-      cy.on('tap', 'node', function (e) {
-        const node = e.target;
-        if (node.hasClass('ghost-node')) return;
-
-        if (selectionQueue.includes(node)) {
-          node.removeClass('manual-selected');
-          selectionQueue = selectionQueue.filter(n => n !== node);
-        } else {
-          if (selectionQueue.length === 2) {
-            selectionQueue[0].removeClass('manual-selected');
-            selectionQueue.shift();
-          }
-          node.addClass('manual-selected');
-          selectionQueue.push(node);
-        }
-
-        const promptBtn = document.getElementById('promptButton');
-        if (selectionQueue.length === 1) {
-          const selected = selectionQueue[0];
-          const prompts = selected.data('prompts');
-
-          // If prompts already exist and at least one is unanswered, show ghost nodes automatically
-          if (Array.isArray(prompts) && prompts.some(p => !p.answered)) {
-            generatePromptNodes();
-            promptBtn.style.display = 'none'; // Lightbulb should not reappear
-          } else {
-            promptBtn.style.display = 'flex'; // Show lightbulb only if no prompts yet
-          }
-        } else {
-          promptBtn.style.display = 'none';
-          cy.nodes('.ghost-node').remove();
-        }
-
-      });
-
-      cy.on('tap', 'node.ghost-node', function (e) {
-        const node = e.target;
-
-        const parentId = node.data('parentId');
-        const parent = cy.getElementById(parentId);
-
-        if (!parent || !node.data('prompt')) return;
-
-        currentPromptParent = parent;
-        currentPromptData = node;
-
-        // Populate modal with prompt content
-        document.getElementById('modalPromptText').innerText = node.data('prompt');
-        document.getElementById('modalAnswer').value = '';
-
-        document.getElementById('promptModal').style.display = 'flex';
-      });
-
-      cy.on('tap', function (event) {
-        if (event.target === cy) clearSelection();
-      });
-    }
-  </script>
-
-  <script>
-    if ('serviceWorker' in navigator) {
+		if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('service-worker.js')
-        .then(() => console.log('Service Worker registered'))
-        .catch(err => console.error('Service Worker registration failed:', err));
+        .then(reg => console.log('Service worker registered', reg))
+        .catch(err => console.error('Service worker registration failed', err));
     }
-  </script>
-</body>
+		
+  let cy;
+  let nodeId = 0;
+  let selectionQueue = [];
 
+  window.onload = () => {
+    cy = cytoscape({
+      wheelSensitivity: 0.1,
+      minZoom: 0.1,
+      maxZoom: 2,
+      container: document.getElementById('cy'),
+      elements: loadData(),
+      style: [
+        {
+          selector: 'node',
+          style: {
+            shape: 'ellipse',
+            'background-color': '#4a90e2',
+            label: 'data(label)',
+            color: '#fff',
+            'text-valign': 'center',
+            'text-halign': 'center',
+            'text-wrap': 'wrap',
+            'text-max-width': '100px',
+            'font-size': '10px',
+            padding: '5px',
+            'border-width': 0,
+            'border-color': '#ffa500'
+          }
+        },
+        {
+          selector: 'edge',
+          style: {
+            width: 2,
+            'line-color': '#ccc',
+            'target-arrow-color': '#ccc',
+            'target-arrow-shape': 'triangle'
+          }
+        },
+        {
+          selector: '.manual-selected',
+          style: {
+            'border-width': 3,
+            'border-color': '#ffa500'
+          }
+        }
+      ],
+      layout: { name: 'preset' }
+    });
+
+    updateNodeIdCounter();
+    setupCustomSelection();
+  };
+
+  function estimateSphereSize(text) {
+    const base = 80;
+    const perChar = 0.6;
+    const max = 300;
+    return Math.min(max, base + perChar * text.length);
+  }
+
+  function updateNodeIdCounter() {
+    const allIds = cy.nodes().map(n => parseInt(n.id().slice(1))).filter(n => !isNaN(n));
+    nodeId = allIds.length ? Math.max(...allIds) + 1 : 0;
+  }
+
+  function saveData() {
+    const json = cy.elements().jsons();
+    localStorage.setItem('thoughtWeb', JSON.stringify(json));
+  }
+
+  function loadData() {
+    const raw = localStorage.getItem('thoughtWeb');
+    if (!raw) return [];
+    try {
+      const elements = JSON.parse(raw);
+      elements.forEach(el => {
+        if (el.group === 'nodes' && el.data.label) {
+          const size = estimateSphereSize(el.data.label);
+          el.style = { width: `${size}px`, height: `${size}px` };
+        }
+      });
+      return elements;
+    } catch (e) {
+      console.error('Failed to load saved graph:', e);
+      return [];
+    }
+  }
+
+  function runAutoLayout() {
+    cy.layout({ name: 'cose', animate: true }).run();
+  }
+
+  function addNode() {
+    const input = document.getElementById('thoughtInput');
+    const text = input.value.trim();
+    if (!text) return;
+    const id = `n${nodeId++}`;
+    const size = estimateSphereSize(text);
+
+    cy.add({
+      data: { id, label: text },
+      style: {
+        width: `${size}px`,
+        height: `${size}px`
+      }
+    });
+
+    input.value = '';
+    saveData();
+  }
+
+  function addLinkedNode() {
+    if (selectionQueue.length !== 1) {
+      alert('Select exactly one node to link from.');
+      return;
+    }
+
+    const input = document.getElementById('thoughtInput');
+    const text = input.value.trim();
+    if (!text) return;
+
+    const fromId = selectionQueue[0].id();
+    const id = `n${nodeId++}`;
+    const size = estimateSphereSize(text);
+
+    cy.add([
+      {
+        data: { id, label: text },
+        style: {
+          width: `${size}px`,
+          height: `${size}px`
+        }
+      },
+      { data: { id: `e${fromId}_${id}`, source: fromId, target: id } }
+    ]);
+
+    input.value = '';
+    clearSelection();
+    saveData();
+  }
+
+  function linkNodes() {
+    if (selectionQueue.length !== 2) {
+      alert('Select exactly 2 nodes to link.');
+      return;
+    }
+    const [from, to] = selectionQueue;
+    const id = `e${from.id()}_${to.id()}`;
+    cy.add({ data: { id, source: from.id(), target: to.id() } });
+    clearSelection();
+    saveData();
+  }
+
+  function deleteSelected() {
+    selectionQueue.forEach(n => n.remove());
+    clearSelection();
+    saveData();
+  }
+
+  function clearSelection() {
+    selectionQueue.forEach(n => n.removeClass('manual-selected'));
+    selectionQueue = [];
+  }
+
+  function setupCustomSelection() {
+    cy.on('tap', 'node', function (e) {
+      const node = e.target;
+
+      if (selectionQueue.includes(node)) {
+        // Already selected → unselect it
+        node.removeClass('manual-selected');
+        selectionQueue = selectionQueue.filter(n => n !== node);
+      } else {
+        if (selectionQueue.length === 2) {
+          const removed = selectionQueue.shift();
+          removed.removeClass('manual-selected');
+        }
+        node.addClass('manual-selected');
+        selectionQueue.push(node);
+      }
+    });
+  }
+</script>
+
+<button id="downloadBtn" style="position:fixed;bottom:10px;right:10px;z-index:9999;">
+  Download localStorage
+</button>
+
+<script>
+document.getElementById('downloadBtn').addEventListener('touchstart', downloadStorage);
+document.getElementById('downloadBtn').addEventListener('click', downloadStorage);
+
+function downloadStorage() {
+  const data = JSON.stringify(localStorage, null, 2);
+  const blob = new Blob([data], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'localStorage.json';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
+</script>
+
+
+</body>
 </html>
