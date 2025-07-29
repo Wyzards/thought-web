@@ -1,5 +1,5 @@
 const CACHE_NAME = 'thought-web-cache-v5'; // <-- bump version to invalidate old cache
-const urlsToCache = ['/', '/index.html', '/manifest.json']; // always include '/' for proper root caching
+const urlsToCache = ['/', '/thought-web/', '/thought-web/index.html', '/thought-web/manifest.json', '/index.html', '/manifest.json']; // always include '/' for proper root caching
 
 // 🔁 Cache assets on install and activate immediately
 self.addEventListener('install', event => {
@@ -7,6 +7,9 @@ self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => cache.addAll(urlsToCache))
+      .catch(err => {
+        console.error('Caching failed during install:', err);
+      })
   );
 });
 
