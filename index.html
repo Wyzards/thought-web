@@ -226,14 +226,18 @@
     function saveData() {
       const data = cy.elements().jsons();
       localStorage.setItem('thoughtMap', JSON.stringify(data));
+      localStorage.setItem('thoughtWeb', JSON.stringify(data));
       console.log('Graph saved to localStorage');
     }
 
     function loadData() {
-      const raw = localStorage.getItem('thoughtMap');
+      const raw = localStorage.getItem('thoughtMap') || localStorage.getItem('thoughtWeb');
+
       if (!raw) {
         console.warn('No saved data found.');
         return [];
+      } else if (!localStorage.getItem('thoughtMap')) {
+        alert('Old save data detected. It will be upgraded to the new format.');
       }
 
       let parsed;
