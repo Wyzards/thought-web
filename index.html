@@ -157,25 +157,47 @@
     let currentPromptData = null;
 
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.getRegistration().then((registration) => {
-        if (registration) {
-          registration.update(); // force check for update
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('service-worker.js')
+          .then(registration => {
+            console.log('Service Worker registered:', registration);
 
-          if (registration.waiting) {
-            registration.waiting.postMessage({ type: 'SKIP_WAITING' });
-          }
+            // Check if there's an updated SW waiting to activate
+            if (registration.waiting) {
+              console.log('Service Worker waiting, sending skipWaiting');
+              registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+            }
 
-          registration.onupdatefound = () => {
-            const newWorker = registration.installing;
-            newWorker.onstatechange = () => {
-              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                window.location.reload(); // optional: refresh to use updated content
-              }
+            // Listen for updates found
+            registration.onupdatefound = () => {
+              const newWorker = registration.installing;
+              console.log('Service Worker update found:', newWorker);
+
+              newWorker.onstatechange = () => {
+                console.log('New SW state:', newWorker.state);
+
+                if (newWorker.state === 'installed') {
+                  if (navigator.serviceWorker.controller) {
+                    // New update installed, reload page to load new SW and assets
+                    console.log('New SW installed and controlling page, reloading...');
+                    window.location.reload();
+                  } else {
+                    console.log('Service Worker installed for first time');
+                  }
+                }
+              };
             };
-          };
-        }
+          })
+          .catch(err => console.error('Service Worker registration failed:', err));
+
+        // Optional: Listen for controlling service worker changing (when skipWaiting activates)
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+          console.log('Controller changed - new service worker activated');
+          window.location.reload();
+        });
       });
     }
+
 
     window.onload = () => {
       cy = cytoscape({
