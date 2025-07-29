@@ -1,4 +1,4 @@
-const CACHE_NAME = 'thought-web-cache-v3'; // <-- bump version to invalidate old cache
+const CACHE_NAME = 'thought-web-cache-v4'; // <-- bump version to invalidate old cache
 const urlsToCache = ['/', '/index.html', '/manifest.json']; // always include '/' for proper root caching
 
 // 🔁 Cache assets on install and activate immediately
@@ -24,15 +24,6 @@ self.addEventListener('activate', event => {
   return self.clients.claim(); // immediately control all tabs
 });
 
-// 🔄 Cache-first fetch, fallback to network
-self.addEventListener('fetch', event => {
-  event.respondWith(
-    caches.match(event.request).then(response =>
-      response || fetch(event.request)
-    )
-  );
-});
-
 self.addEventListener('message', event => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
@@ -42,8 +33,8 @@ self.addEventListener('message', event => {
 self.addEventListener('fetch', event => {
   const request = event.request;
 
-  // Serve HTML from network first (update app shell)
   if (request.mode === 'navigate') {
+    // Network-first for navigation requests (HTML)
     event.respondWith(
       fetch(request)
         .then(response => {
@@ -53,13 +44,10 @@ self.addEventListener('fetch', event => {
         })
         .catch(() => caches.match(request))
     );
-    return;
+  } else {
+    // Cache-first for everything else
+    event.respondWith(
+      caches.match(request).then(response => response || fetch(request))
+    );
   }
-
-  // Otherwise cache-first
-  event.respondWith(
-    caches.match(request).then(response =>
-      response || fetch(request)
-    )
-  );
 });
