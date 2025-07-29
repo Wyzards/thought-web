@@ -159,7 +159,20 @@
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.getRegistration().then((registration) => {
         if (registration) {
-          registration.update(); // force check for updated SW on load
+          registration.update(); // force check for update
+
+          if (registration.waiting) {
+            registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+          }
+
+          registration.onupdatefound = () => {
+            const newWorker = registration.installing;
+            newWorker.onstatechange = () => {
+              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                window.location.reload(); // optional: refresh to use updated content
+              }
+            };
+          };
         }
       });
     }
