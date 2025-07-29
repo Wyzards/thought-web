@@ -23,18 +23,31 @@
     }
 
     #controls {
-      width: 100%;
-      background: #f4f4f4;
-      padding: 10px;
-      box-sizing: border-box;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      flex-shrink: 0;
-    }
+	  width: 100%;
+	  background: #f4f4f4;
+	  padding: 10px;
+	  box-sizing: border-box;
+	  display: flex;
+	  flex-direction: column;
+	  gap: 10px;
+	  flex-shrink: 0;
+	}
+	
+	#searchToolbar {
+	  display: flex;
+	  flex-wrap: wrap;
+	  justify-content: center;
+	  align-items: center;
+	  gap: 6px;
+	}
+	
+	#searchInput {
+	  width: 180px;
+	  max-width: 60vw;
+	}
 
-    #controls textarea,
-    #controls button {
+    #controls > textarea,
+    #controls > button {
       width: 100%;
       font-size: 16px;
       padding: 12px;
@@ -130,8 +143,17 @@
       <button onclick="addLinkedNode()">Add Linked Thought</button>
       <button onclick="linkNodes()">Link Selected Nodes</button>
       <button onclick="deleteSelected()">Delete Selected Node</button>
-      <button onclick="runAutoLayout()">Auto Re-Layout</button>
-    </div>
+		<button onclick="toggleSearchModal()">🔍 Search</button>
+	    <div id="searchModal" style="display:none; margin-top:8px;">
+		<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 6px;">
+		  <input type="text" id="searchInput" placeholder="Search text..." style="width: 60%;" />
+		  <button onclick="prevSearchResult()">←</button>
+		  <span id="searchIndex">0 / 0</span>
+		  <button onclick="nextSearchResult()">→</button>
+		  <button onclick="closeSearchModal()">✖</button>
+		</div>
+		</div>
+	  </div>
     <div id="cy"></div>
   </div>
 
@@ -145,6 +167,8 @@
       <button onclick="closePromptModal()">Cancel</button>
     </div>
   </div>
+
+
 
   <script>
     if ('serviceWorker' in navigator) {
@@ -261,6 +285,61 @@
       updateNodeIdCounter();
       setupCustomSelection();
     };
+	
+	let searchResults = [];
+	let searchIndex = 0;
+
+	function toggleSearchModal() {
+	const modal = document.getElementById('searchModal');
+	modal.style.display = (modal.style.display === 'none') ? 'block' : 'none';
+	if (modal.style.display === 'block') {
+		setTimeout(() => document.getElementById('searchInput').focus(), 100);
+	}
+}
+
+
+	function closeSearchModal() {
+	  document.getElementById('searchModal').style.display = 'none';
+	}
+
+	document.getElementById('searchInput').addEventListener('keypress', e => {
+	  if (e.key === 'Enter') performSearch();
+	});
+
+	function performSearch() {
+	  const query = document.getElementById('searchInput').value.trim().toLowerCase();
+	  searchResults = cy.nodes().filter(n => n.data('label').toLowerCase().includes(query));
+	  searchIndex = 0;
+	  updateSearchFocus();
+	}
+
+	function updateSearchFocus() {
+	  if (searchResults.length === 0) {
+		document.getElementById('searchIndex').textContent = '0 / 0';
+		return;
+	  }
+	  const node = searchResults[searchIndex];
+	  cy.animate({
+		fit: {
+		  eles: node
+		},
+		duration: 500
+	  });
+	  document.getElementById('searchIndex').textContent = `${searchIndex + 1} / ${searchResults.length}`;
+	}
+
+	function nextSearchResult() {
+	  if (searchResults.length === 0) return;
+	  searchIndex = (searchIndex + 1) % searchResults.length;
+	  updateSearchFocus();
+	}
+
+	function prevSearchResult() {
+	  if (searchResults.length === 0) return;
+	  searchIndex = (searchIndex - 1 + searchResults.length) % searchResults.length;
+	  updateSearchFocus();
+	}
+
 
     function estimateSphereSize(text) {
       const base = 80;
