@@ -1,4 +1,4 @@
-const CACHE_NAME = 'thought-web-cache-v5'; // <-- bump version to invalidate old cache
+const CACHE_NAME = 'thought-web-cache-v6'; // <-- bump version to invalidate old cache
 const urlsToCache = ['/', '/thought-web/', '/thought-web/index.html', '/thought-web/manifest.json', '/index.html', '/manifest.json']; // always include '/' for proper root caching
 
 // 🔁 Cache assets on install and activate immediately
@@ -18,7 +18,7 @@ self.addEventListener('activate', event => {
   console.log('[SW] Activate event');
   event.waitUntil(
     caches.keys().then(cacheNames =>
-      Promise.all(
+    Promise.all(
         cacheNames
           .filter(name => name !== CACHE_NAME)
           .map(name => caches.delete(name))
