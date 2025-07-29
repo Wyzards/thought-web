@@ -183,19 +183,19 @@
     }
 
     function logDebug(msg) {
-      const el = document.getElementById('debugLog');
-      if (el) {
-        const time = new Date().toLocaleTimeString();
-        el.textContent += `[${time}] ${msg}\n`;
-        el.scrollTop = el.scrollHeight;
-      }
-      console.log(msg);
+      // const el = document.getElementById('debugLog');
+      // if (el) {
+      //   const time = new Date().toLocaleTimeString();
+      //   el.textContent += `[${time}] ${msg}\n`;
+      //   el.scrollTop = el.scrollHeight;
+      // }
+      // console.log(msg);
     }
   </script>
 
   <!-- Add this somewhere near bottom of <body> for in-app logging -->
-  <pre id="debugLog"
-    style="position:fixed;bottom:0;left:0;right:0;max-height:150px;background:#111;color:#0f0;font-size:12px;overflow-y:auto;padding:5px;z-index:9999"></pre>
+  <!-- <pre id="debugLog" -->
+  <!-- style="position:fixed;bottom:0;left:0;right:0;max-height:150px;background:#111;color:#0f0;font-size:12px;overflow-y:auto;padding:5px;z-index:9999"></pre> -->
 
   <script src="https://unpkg.com/cytoscape@3.21.1/dist/cytoscape.min.js"></script>
   <script>
