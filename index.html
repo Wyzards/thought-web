@@ -522,18 +522,47 @@
     }
 
     function linkNodes() {
-      if (selectionQueue.length !== 2) return alert('Select 2 nodes.');
-      const [from, to] = selectionQueue;
-      cy.add({
-        data: {
-          id: `e${from.id()}_${to.id()}`,
-          source: from.id(),
-          target: to.id()
-        }
-      });
-      clearSelection();
-      saveData();
-    }
+  if (selectionQueue.length !== 2) return alert('Select 2 nodes.');
+  const [from, to] = selectionQueue;
+
+  // Check if a link already exists
+  const existingEdge = cy.edges().filter(edge =>
+    (edge.source().id() === from.id() && edge.target().id() === to.id()) ||
+    (edge.source().id() === to.id() && edge.target().id() === from.id())
+  )[0];
+
+  if (existingEdge) {
+    // Unlink
+    cy.remove(existingEdge);
+  } else {
+    // Link
+    cy.add({
+      data: {
+        id: `e${from.id()}_${to.id()}`,
+        source: from.id(),
+        target: to.id()
+      }
+    });
+  }
+
+  clearSelection();
+  saveData();
+  updateLinkButtonLabel();
+}
+
+    function updateLinkButtonLabel() {
+  const button = document.querySelector('button[onclick="linkNodes()"]');
+  if (selectionQueue.length === 2) {
+    const [from, to] = selectionQueue;
+    const existingEdge = cy.edges().some(edge =>
+      (edge.source().id() === from.id() && edge.target().id() === to.id()) ||
+      (edge.source().id() === to.id() && edge.target().id() === from.id())
+    );
+    button.textContent = existingEdge ? 'Unlink Selected Nodes' : 'Link Selected Nodes';
+  } else {
+    button.textContent = 'Link Selected Nodes';
+  }
+}
 
     function deleteSelected() {
       selectionQueue.forEach(n => n.remove());
@@ -582,6 +611,7 @@
           cy.nodes('.ghost-node').remove();
         }
 
+        updateLinkButtonLabel();
       });
 
       cy.on('tap', 'node.ghost-node', function (e) {
