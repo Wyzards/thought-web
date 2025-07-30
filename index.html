@@ -356,6 +356,12 @@
       updateNodeIdCounter();
       setupCustomSelection();
 	  updateLinkButtonLabel();
+	  
+	  cy.nodes('.manual-selected').forEach(node => {
+  if (!selectionQueue.includes(node)) {
+    node.removeClass('manual-selected');
+  }
+});
     };
 	
 	let searchResults = [];
@@ -773,10 +779,6 @@ function updateLinkButtonLabel() {
           node.removeClass('manual-selected');
           selectionQueue = selectionQueue.filter(n => n !== node);
         } else {
-          if (selectionQueue.length === 2) {
-            selectionQueue[0].removeClass('manual-selected');
-            selectionQueue.shift();
-          }
           node.addClass('manual-selected');
           selectionQueue.push(node);
         }
@@ -822,6 +824,55 @@ function updateLinkButtonLabel() {
       cy.on('tap', function (event) {
         if (event.target === cy) clearSelection();
       });
+	  
+	  let dragStartPosition = null;
+let lastDragPosition = null;
+let initialPositions = {};
+
+cy.on('grab', 'node', function (e) {
+  const grabbed = e.target;
+  if (!selectionQueue.includes(grabbed)) return;
+
+  dragStartPosition = { ...grabbed.position() };
+  lastDragPosition = { ...grabbed.position() };
+
+  initialPositions = {};
+  selectionQueue.forEach(n => {
+    initialPositions[n.id()] = { ...n.position() };
+  });
+});
+
+cy.on('drag', 'node', function (e) {
+  const dragged = e.target;
+  if (!selectionQueue.includes(dragged)) return;
+  if (!lastDragPosition) return;
+
+  const current = dragged.position();
+  const dx = current.x - lastDragPosition.x;
+  const dy = current.y - lastDragPosition.y;
+
+  selectionQueue.forEach(n => {
+    if (n.id() === dragged.id()) return;
+    const pos = n.position();
+    n.position({
+      x: pos.x + dx,
+      y: pos.y + dy
+    });
+  });
+
+  lastDragPosition = { ...current };
+});
+
+cy.on('free', 'node', function (e) {
+  const released = e.target;
+  if (!selectionQueue.includes(released)) return;
+
+  dragStartPosition = null;
+  lastDragPosition = null;
+  initialPositions = {};
+  saveData();
+});
+
     }
   </script>
 </body>
