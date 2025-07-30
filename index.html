@@ -362,6 +362,17 @@
     node.removeClass('manual-selected');
   }
 });
+
+let saveTimeout = null;
+
+cy.on('position', 'node', function(e) {
+  // Save data on node position change (dragging or programmatic move)
+  if (saveTimeout) clearTimeout(saveTimeout);
+  saveTimeout = setTimeout(() => {
+    saveData();
+    saveTimeout = null;
+  }, 500);
+});
     };
 	
 	let searchResults = [];
