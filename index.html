@@ -348,11 +348,7 @@
 					ready: function () {
 						this.nodes().ungrabify();
 					},
-					wheelSensitivity: 0.1,
-					userPanningEnabled: true,
-					autoungrabify: false,
-					autounselectify: false,
-					boxSelectionEnabled: false
+					wheelSensitivity: 0.1
 				});
 
 				updateNodeIdCounter();
@@ -791,6 +787,44 @@
 			}
 
 			function setupCustomSelection() {
+				let isManualPanning = false;
+				let lastPanPosition = null;
+
+				// On pointer down on unselected node, begin manual pan
+				cy.on('tapstart', 'node', (e) => {
+					const node = e.target;
+
+					// Only manual-pan if node is unselected and ungrabbable
+					if (!node.hasClass('manual-selected')) {
+						isManualPanning = true;
+						const oe = e.originalEvent.touches?.[0] || e.originalEvent;
+						lastPanPosition = { x: oe.clientX, y: oe.clientY };
+					}
+				});
+
+				// Track pointer move and apply pan
+				cy.on('tapdrag', (e) => {
+					if (!isManualPanning || !lastPanPosition) return;
+
+					const oe = e.originalEvent.touches?.[0] || e.originalEvent;
+					const dx = oe.clientX - lastPanPosition.x;
+					const dy = oe.clientY - lastPanPosition.y;
+
+					const pan = cy.pan();
+					cy.pan({
+						x: pan.x + dx,
+						y: pan.y + dy
+					});
+
+					lastPanPosition = { x: oe.clientX, y: oe.clientY };
+				});
+
+				// End pan on release
+				cy.on('tapend', () => {
+					isManualPanning = false;
+					lastPanPosition = null;
+				});
+
 				cy.on('tap', 'node', function (e) {
 					const node = e.target;
 					if (node.hasClass('ghost-node')) return;
@@ -853,10 +887,7 @@
 
 				cy.on('grab', 'node', function (e) {
 					const grabbed = e.target;
-					if (!grabbed.hasClass('manual-selected') || !selectionQueue.includes(grabbed)) {
-						event.preventDefault();
-						cy.userPanningEnabled(true);
-					}
+					if (!selectionQueue.includes(grabbed)) return;
 
 					dragStartPosition = { ...grabbed.position() };
 					lastDragPosition = { ...grabbed.position() };
@@ -867,97 +898,35 @@
 					});
 				});
 
-				cy.on('tapstart', 'node', (e) => {
-					const node = e.target;
+				cy.on('drag', 'node', function (e) {
+					const dragged = e.target;
+					if (!selectionQueue.includes(dragged)) return;
+					if (!lastDragPosition) return;
 
-					// Only manual-pan if node is unselected and ungrabbable
-					if (!node.hasClass('manual-selected')) {
-						isManualPanning = true;
-						const oe = e.originalEvent.touches?.[0] || e.originalEvent;
-						lastPanPosition = { x: oe.clientX, y: oe.clientY };
-					}
-				});
+					const current = dragged.position();
+					const dx = current.x - lastDragPosition.x;
+					const dy = current.y - lastDragPosition.y;
 
-				cy.on('tapdrag', (e) => {
-					if (!isManualPanning || !lastPanPosition) return;
-
-					const oe = e.originalEvent.touches?.[0] || e.originalEvent;
-					const dx = oe.clientX - lastPanPosition.x;
-					const dy = oe.clientY - lastPanPosition.y;
-
-					const pan = cy.pan();
-					cy.pan({
-						x: pan.x + dx,
-						y: pan.y + dy
+					selectionQueue.forEach((n) => {
+						if (n.id() === dragged.id()) return;
+						const pos = n.position();
+						n.position({
+							x: pos.x + dx,
+							y: pos.y + dy
+						});
 					});
 
-					lastPanPosition = { x: oe.clientX, y: oe.clientY };
-				});
-
-				cy.on('tapend', () => {
-					isManualPanning = false;
-					lastPanPosition = null;
-				});
-
-				let isPanningOnNodeDrag = false;
-				let lastPanPosition = null;
-
-				cy.on('drag', 'node', function (e) {
-					const node = e.target;
-
-					if (node.hasClass('manual-selected') && selectionQueue.includes(node)) {
-						// Selected nodes: drag all selected nodes together as before
-						if (!lastDragPosition) return;
-
-						const current = node.position();
-						const dx = current.x - lastDragPosition.x;
-						const dy = current.y - lastDragPosition.y;
-
-						selectionQueue.forEach((n) => {
-							if (n.id() === node.id()) return;
-							const pos = n.position();
-							n.position({
-								x: pos.x + dx,
-								y: pos.y + dy
-							});
-						});
-
-						lastDragPosition = { ...current };
-					} else {
-						// Unselected nodes: prevent dragging node, pan the viewport instead
-
-						// Initialize lastPanPosition if this is the first drag event
-						if (!isPanningOnNodeDrag) {
-							isPanningOnNodeDrag = true;
-							lastPanPosition = e.originalEvent.touches
-								? { x: e.originalEvent.touches[0].clientX, y: e.originalEvent.touches[0].clientY }
-								: { x: e.originalEvent.clientX, y: e.originalEvent.clientY };
-						} else {
-							const ev = e.originalEvent.touches ? e.originalEvent.touches[0] : e.originalEvent;
-							const dx = ev.clientX - lastPanPosition.x;
-							const dy = ev.clientY - lastPanPosition.y;
-
-							const pan = cy.pan();
-							cy.pan({
-								x: pan.x + dx,
-								y: pan.y + dy
-							});
-
-							lastPanPosition = { x: ev.clientX, y: ev.clientY };
-						}
-
-						// Reset node position to prevent movement
-						node.position(node.position());
-					}
+					lastDragPosition = { ...current };
 				});
 
 				cy.on('free', 'node', function (e) {
-					const node = e.target;
-					if (!node.hasClass('manual-selected')) {
-						// End manual panning state when drag ends on unselected nodes
-						isPanningOnNodeDrag = false;
-						lastPanPosition = null;
-					}
+					const released = e.target;
+					if (!selectionQueue.includes(released)) return;
+
+					dragStartPosition = null;
+					lastDragPosition = null;
+					initialPositions = {};
+					saveData();
 				});
 			}
 		</script>
