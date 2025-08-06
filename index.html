@@ -351,6 +351,45 @@
 					wheelSensitivity: 0.1
 				});
 
+const debugBox = document.createElement('div');
+debugBox.style.position = 'fixed';
+debugBox.style.bottom = '0';
+debugBox.style.left = '0';
+debugBox.style.backgroundColor = 'rgba(0,0,0,0.7)';
+debugBox.style.color = '#fff';
+debugBox.style.padding = '6px 10px';
+debugBox.style.fontSize = '12px';
+debugBox.style.fontFamily = 'monospace';
+debugBox.style.zIndex = 100000;
+debugBox.style.whiteSpace = 'pre-wrap';
+// document.body.appendChild(debugBox);
+
+// Function to update debug info
+function updateDebugInfo() {
+  const zoom = cy.zoom();
+  const pan = cy.pan();
+
+  // Calculate viewport width and height in graph units
+  const graphViewportWidth = window.innerWidth / zoom;
+  const graphViewportHeight = window.innerHeight / zoom;
+
+  // Calculate viewport center in graph coordinates
+  const centerX = (window.innerWidth / 2 - pan.x) / zoom;
+  const centerY = (window.innerHeight / 2 - pan.y) / zoom;
+
+  debugBox.textContent =
+    `Viewport center (graph coords): x=${centerX.toFixed(2)}, y=${centerY.toFixed(2)}\n` +
+    `Viewport size (graph units): width=${graphViewportWidth.toFixed(2)}, height=${graphViewportHeight.toFixed(2)}\n` +
+    `Pan: x=${pan.x.toFixed(2)}, y=${pan.y.toFixed(2)}\n` +
+    `Zoom: ${zoom.toFixed(2)}`;
+}
+
+// Update on pan or zoom
+// cy.on('pan zoom', updateDebugInfo);
+
+// Initial update
+// updateDebugInfo();
+
 				updateNodeIdCounter();
 				setupCustomSelection();
 				updateLinkButtonLabel();
@@ -544,12 +583,31 @@
 				cy.layout({ name: 'cose', animate: true }).run();
 			}
 
-			function addNode(text = null, position = { x: 0, y: 0 }) {
+			function addNode(text = null, position = null) {
 				const input = document.getElementById('thoughtInput');
 				const content = text || input.value.trim();
 				if (!content) return;
 				const id = `n${nodeId++}`;
 				const size = estimateSphereSize(content);
+
+				if (!position) {
+					const zoom = cy.zoom();
+					const pan = cy.pan();
+					const rect = cy.container().getBoundingClientRect();
+
+					// Center of Cytoscape container in screen pixels
+					const centerX = rect.width / 2;
+					const centerY = rect.height / 2;
+
+					// Convert center of container from screen pixels to graph coords
+					const centerGraphPos = {
+						x: (centerX - pan.x) / zoom,
+						y: (centerY - pan.y) / zoom
+					};
+
+					// Find empty spot near centerGraphPos
+					position = findEmptySpotNear(centerGraphPos);
+				}
 
 				cy.add({
 					data: { id, label: content, size },
@@ -560,6 +618,8 @@
 				if (!text) input.value = '';
 				saveData();
 			}
+
+
 
 			function addLinkedNode() {
 				if (selectionQueue.length !== 1) return alert('Select exactly one node to link from.');
@@ -586,6 +646,15 @@
 
 			function findEmptySpotNear(pos) {
 				const offset = 150;
+
+				// Check the center position first
+				const centerConflict = cy.nodes().some((n) => {
+					const np = n.position();
+					return Math.hypot(np.x - pos.x, np.y - pos.y) < 100;
+				});
+				if (!centerConflict) return pos;
+
+				// Check points around a circle offset from center
 				for (let i = 0; i < 360; i += 30) {
 					const angle = (i * Math.PI) / 180;
 					const x = pos.x + Math.cos(angle) * offset;
@@ -596,6 +665,7 @@
 					});
 					if (!conflict) return { x, y };
 				}
+				// Fallback: just offset diagonally if no empty spot found
 				return { x: pos.x + offset, y: pos.y + offset };
 			}
 
