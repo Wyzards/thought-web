@@ -52,28 +52,29 @@
 				font-size: 14px;
 			}
 
-			#controls {
-				position: relative;
-				width: 100%;
-				background: #f4f4f4;
-				padding: 10px;
-				box-sizing: border-box;
-				display: flex;
-				flex-direction: column;
-				gap: 10px;
-				flex-shrink: 0;
-			}
-
 			#searchModal {
 				position: absolute;
-				top: 100%; /* Places it right below the controls */
+				top: 100%;
 				left: 0;
 				width: 100%;
-				background: #f4f4f4;
+				max-height: 300px;
+				overflow-y: auto;
+				background-color: #2a2a2a;
+				border: 1px solid #444;
+				border-radius: 4px;
+				color: #fff;
+				box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+				z-index: 999;
+			}
+
+			#searchModal .result {
 				padding: 10px;
-				box-sizing: border-box;
-				display: none; /* initially hidden */
-				z-index: 10;
+				cursor: pointer;
+				border-bottom: 1px solid #444;
+			}
+
+			#searchModal .result:hover {
+				background-color: #3a3a3a;
 			}
 
 			#searchModal.visible {
@@ -81,6 +82,22 @@
 				flex-wrap: wrap;
 				align-items: center;
 				gap: 6px;
+			}
+
+			#searchModal input[type="text"]::placeholder,
+			#searchModal textarea::placeholder {
+				color: #bbb;
+			}
+
+			#searchBar {
+				width: 100%;
+				padding: 10px;
+				font-size: 16px;
+				background-color: #2a2a2a;
+				color: #ffffff;
+				border: 1px solid #444;
+				border-radius: 4px;
+				box-sizing: border-box;
 			}
 
 			#searchModal input {
@@ -100,20 +117,27 @@
 				justify-content: center;
 				align-items: center;
 				gap: 6px;
+				padding: 8px;
+				background-color: #1e1e1e; /* optional: to distinguish the toolbar from modal background */
+				border-bottom: 1px solid #444; /* subtle divider if needed */
 			}
 
 			#searchInput {
 				width: 180px;
 				max-width: 60vw;
-			}
-
-			#controls > textarea,
-			#controls > button {
-				width: 100%;
+				padding: 8px 10px;
 				font-size: 16px;
-				padding: 12px;
+				background-color: #2a2a2a;
+				color: #ffffff;
+				border: 1px solid #444;
+				border-radius: 4px;
 				box-sizing: border-box;
 			}
+
+			#searchInput::placeholder {
+				color: #aaa;
+			}
+
 
 			#graph-container {
 				flex-grow: 1;
@@ -150,6 +174,41 @@
 				z-index: 2;
 				background: transparent;
 			}
+			
+			#controls {
+				position: relative;
+				width: 100%;
+				background: #1e1e1e;
+				padding: 10px;
+				box-sizing: border-box;
+				display: flex;
+				flex-direction: column;
+				gap: 10px;
+				flex-shrink: 0;
+				color: #fff;
+			}
+
+			#controls > textarea,
+			#controls > button {
+				width: 100%;
+				font-size: 16px;
+				padding: 12px;
+				box-sizing: border-box;
+				background-color: #2a2a2a;
+				color: #ffffff;
+				border: 1px solid #444;
+				border-radius: 4px;
+			}
+
+			#controls > button:hover {
+				background-color: #333;
+				cursor: pointer;
+			}
+
+			#controls > textarea::placeholder {
+				color: #bbb;
+			}
+
 
 			@media (min-width: 768px) {
 				#container {
