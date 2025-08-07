@@ -138,7 +138,6 @@
 				color: #aaa;
 			}
 
-
 			#graph-container {
 				flex-grow: 1;
 				width: 100%;
@@ -255,7 +254,6 @@
 				align-items: center;
 				justify-content: center;
 				z-index: 10000;
-				/* <- make sure it sits on top of everything */
 			}
 
 			#modalContent {
@@ -281,6 +279,21 @@
 				background-color: #aaa !important;
 				border-style: dashed;
 				opacity: 0.8;
+			}
+			
+			#textMeasurer {
+			  position: absolute;
+			  visibility: hidden;
+			  font-size: 12px;
+			  font-family: sans-serif;
+			  line-height: 1.2;
+			  padding: 4px;
+			  box-sizing: border-box;
+			  white-space: normal;
+			  word-wrap: break-word;
+			  width: auto;
+			  max-width: none;
+			  display: inline-block;
 			}
 		</style>
 	</head>
@@ -329,6 +342,8 @@
 				<button onclick="closeEditModal()">Cancel</button>
 			</div>
 		</div>
+
+		<div id="textMeasurer"></div>
 
 		<script>
 			if ('serviceWorker' in navigator) {
@@ -415,11 +430,13 @@
 
 							  label: 'data(label)',
 							  color: '#ffffff',
-							  'font-size': '12px',
+							  'font-size': 12,
 							  'text-valign': 'center',
 							  'text-halign': 'center',
 							  'text-wrap': 'wrap',
-							  'text-max-width': '100px',
+							  'text-max-width': 'data(labelWidth)',
+							  'width': 'data(nodeSize)',
+							  'height': 'data(nodeSize)',
 							  padding: '5px',
 
 							  'z-index': 10
@@ -560,6 +577,62 @@
 			let searchResults = [];
 			let searchIndex = 0;
 
+			function calculateSquareTextBoxSize(text) {
+			  const measurer = document.getElementById("textMeasurer");
+
+			  // Setup styles to match your font, padding etc
+			  measurer.style.fontSize = "12px";
+			  measurer.style.fontFamily = "sans-serif";
+			  measurer.style.lineHeight = "1.2";
+			  measurer.style.padding = "4px";
+			  measurer.style.boxSizing = "border-box";
+			  measurer.style.whiteSpace = "normal";
+			  measurer.style.wordWrap = "break-word";
+			  measurer.style.visibility = "hidden";
+			  measurer.style.position = "absolute";
+
+			  measurer.innerText = text;
+
+			  const paddingPx = 16;
+
+			  let min = 30;
+			  let max = 300;
+
+			  // Step 1: Increase max until height fits in square box (height <= width)
+			  while (true) {
+				measurer.style.width = max + "px";
+				const height = measurer.scrollHeight;
+
+				if (height <= max) break;  // found a width where it fits
+				max *= 2;                  // double max and try again
+			  }
+
+			  // Step 2: Binary search between min and max to find minimal fitting square size
+			  let bestWidth = max;
+
+			  while (min <= max) {
+				const mid = Math.floor((min + max) / 2);
+
+				measurer.style.width = mid + "px";
+				const height = measurer.scrollHeight;
+
+				if (height <= mid) {
+				  bestWidth = mid;
+				  max = mid - 1;
+				} else {
+				  min = mid + 1;
+				}
+			  }
+			  
+			  const nodeSize = Math.ceil(bestWidth * Math.SQRT2);
+
+			  return {
+				labelWidth: bestWidth,
+				nodeSize: nodeSize
+			  };
+			}
+
+
 			function openEditModal() {
 				if (selectionQueue.length !== 1) return;
 				const selected = selectionQueue[0];
@@ -573,18 +646,25 @@
 
 			function submitNodeEdit() {
 				if (selectionQueue.length !== 1) return;
+				
 				const newText = document.getElementById('editNodeTextarea').value.trim();
 				if (!newText) return;
+				
 				const selected = selectionQueue[0];
 				selected.data('label', newText);
 
-				// Resize based on new text
-				const newSize = estimateSphereSize(newText);
-				selected.style({
-					width: `${newSize}px`,
-					height: `${newSize}px`
-				});
-				selected.data('size', newSize);
+				// Recalculate sizes based on new text
+				  const { labelWidth, nodeSize } = calculateSquareTextBoxSize(newText);
+
+				  // Update data fields for global style usage
+				  selected.data('labelWidth', labelWidth);
+				  selected.data('nodeSize', nodeSize);
+
+				  // Remove inline width/height style to avoid conflicts
+				  selected.style({
+					width: '',
+					height: ''
+				  });
 
 				saveData();
 				closeEditModal();
@@ -644,10 +724,14 @@
 			}
 
 			function estimateSphereSize(text) {
-				const base = 80;
-				const perChar = 0.6;
+				// Estimate based on square text area: sqrt(num of chars * area per char)
+				const chars = text.length;
+				const charArea = 25; // tweak as needed for visual balance (px^2 per char)
+				const totalArea = chars * charArea;
+				const side = Math.ceil(Math.sqrt(totalArea));
+				const min = 80;
 				const max = 300;
-				return Math.min(max, base + perChar * text.length);
+				return Math.min(max, Math.max(min, side));
 			}
 
 			function updateNodeIdCounter() {
@@ -706,16 +790,18 @@
 							prompts: Array.isArray(el.data?.prompts) ? el.data.prompts : []
 						};
 
-						// Size handling
-						const size = el.data.size || estimateSphereSize(label);
-						el.data.size = size;
+					 // Make sure labelWidth and nodeSize exist and are numbers, else fallback
+						if (typeof el.data.labelWidth !== 'number' || typeof el.data.nodeSize !== 'number') {
+						  const { labelWidth, nodeSize } = calculateSquareTextBoxSize(el.data.label || '');
+						  el.data.labelWidth = labelWidth;
+						  el.data.nodeSize = nodeSize;
+						}
 
-						// Ensure style exists
-						el.style = {
-							...(el.style || {}),
-							width: `${size}px`,
-							height: `${size}px`
-						};
+						// Remove inline style overrides to let global style take control
+						if (el.style) {
+						  delete el.style.width;
+						  delete el.style.height;
+						}
 					}
 					return el;
 				});
@@ -733,7 +819,8 @@
 				const content = text || input.value.trim();
 				if (!content) return;
 				const id = `n${nodeId++}`;
-				const size = estimateSphereSize(content);
+				const { labelWidth, nodeSize } = calculateSquareTextBoxSize(content);
+
 
 				if (!position) {
 					const zoom = cy.zoom();
@@ -755,9 +842,8 @@
 				}
 
 				cy.add({
-					data: { id, label: content, size },
-					style: { width: `${size}px`, height: `${size}px` },
-					position
+					data: { id: id, label: content, labelWidth: labelWidth, nodeSize: nodeSize},
+					position: position
 				});
 
 				if (!text) input.value = '';
