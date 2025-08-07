@@ -13,7 +13,6 @@
 				padding: 0;
 				height: 100%;
 				font-family: sans-serif;
-				background: #1e1e1e;
 			}
 
 			#container {
@@ -67,29 +66,33 @@
 
 			#searchModal {
 				position: absolute;
-				top: 100%;
+				top: 100%; /* Places it right below the controls */
 				left: 0;
 				width: 100%;
-				max-height: 300px;
-				overflow-y: auto;
-				background-color: #2a2a2a;
-				border: 1px solid #444;
-				border-radius: 4px;
-				color: #fff;
-				box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
-				z-index: 999;
-			}
-
-			#searchModal .result {
+				background: #f4f4f4;
 				padding: 10px;
-				cursor: pointer;
-				border-bottom: 1px solid #444;
+				box-sizing: border-box;
+				display: none; /* initially hidden */
+				z-index: 10;
 			}
 
-			#searchModal .result:hover {
-				background-color: #3a3a3a;
+			#searchModal.visible {
+				display: flex;
+				flex-wrap: wrap;
+				align-items: center;
+				gap: 6px;
 			}
 
+			#searchModal input {
+				flex: 1;
+				min-width: 0;
+			}
+
+			#searchModal button {
+				padding: 8px 12px;
+				font-size: 16px;
+				width: auto;
+			}
 
 			#searchToolbar {
 				display: flex;
@@ -97,28 +100,20 @@
 				justify-content: center;
 				align-items: center;
 				gap: 6px;
-				padding: 8px;
-				background-color: #1e1e1e; /* optional: to distinguish the toolbar from modal background */
-				border-bottom: 1px solid #444; /* subtle divider if needed */
 			}
 
 			#searchInput {
 				width: 180px;
 				max-width: 60vw;
-				padding: 8px 10px;
+			}
+
+			#controls > textarea,
+			#controls > button {
+				width: 100%;
 				font-size: 16px;
-				background-color: #2a2a2a;
-				color: #ffffff;
-				border: 1px solid #444;
-				border-radius: 4px;
+				padding: 12px;
 				box-sizing: border-box;
 			}
-
-			#searchInput::placeholder {
-				color: #aaa;
-			}
-
-
 
 			#graph-container {
 				flex-grow: 1;
@@ -155,41 +150,6 @@
 				z-index: 2;
 				background: transparent;
 			}
-			
-			#controls {
-				position: relative;
-				width: 100%;
-				background: #1e1e1e;
-				padding: 10px;
-				box-sizing: border-box;
-				display: flex;
-				flex-direction: column;
-				gap: 10px;
-				flex-shrink: 0;
-				color: #fff;
-			}
-
-			#controls > textarea,
-			#controls > button {
-				width: 100%;
-				font-size: 16px;
-				padding: 12px;
-				box-sizing: border-box;
-				background-color: #2a2a2a;
-				color: #ffffff;
-				border: 1px solid #444;
-				border-radius: 4px;
-			}
-
-			#controls > button:hover {
-				background-color: #333;
-				cursor: pointer;
-			}
-
-			#controls > textarea::placeholder {
-				color: #bbb;
-			}
-
 
 			@media (min-width: 768px) {
 				#container {
@@ -465,22 +425,6 @@
 					  const nodeWidth = parseFloat(style.width);
 					  const nodeHeight = parseFloat(style.height);
 					  const nodeRadius = Math.max(nodeWidth, nodeHeight) / 2;
-					  
-						const childCount = node.outgoers('node').length; // Or however you're tracking children
-						const normalizedChildFactor = maxChildCount === 0 ? 0 : childCount / maxChildCount;
-
-						// --- Glow radius decreases with more children
-						const baseGlowRadius = nodeRadius * zoom * 2.5;
-						const adjustedGlowRadius = baseGlowRadius * (1 - 0.7 * normalizedChildFactor);  // 0.3–1.0 of base size
-
-						// --- Glow opacity decreases with more children
-						const glowOpacity = 0.6 * (1 - normalizedChildFactor);  // 0.6 (few children) → 0 (many children)
-
-						// --- Border/text opacity decreases with zoom & child count
-						const zoomFadeFactor = Math.min(1, zoom / 0.7); // fade when zoom < 0.7
-						const contentOpacity = 1 - (normalizedChildFactor * 0.7 + (1 - zoomFadeFactor) * 0.5); // blended fade
-
-					  
 					  
 					  const innerRadius = nodeRadius * zoom;
 					  const outerRadius = innerRadius * 2;
