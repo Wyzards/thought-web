@@ -13,6 +13,7 @@
 				padding: 0;
 				height: 100%;
 				font-family: sans-serif;
+				background: #1e1e1e;
 			}
 
 			#container {
@@ -66,33 +67,29 @@
 
 			#searchModal {
 				position: absolute;
-				top: 100%; /* Places it right below the controls */
+				top: 100%;
 				left: 0;
 				width: 100%;
-				background: #f4f4f4;
+				max-height: 300px;
+				overflow-y: auto;
+				background-color: #2a2a2a;
+				border: 1px solid #444;
+				border-radius: 4px;
+				color: #fff;
+				box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+				z-index: 999;
+			}
+
+			#searchModal .result {
 				padding: 10px;
-				box-sizing: border-box;
-				display: none; /* initially hidden */
-				z-index: 10;
+				cursor: pointer;
+				border-bottom: 1px solid #444;
 			}
 
-			#searchModal.visible {
-				display: flex;
-				flex-wrap: wrap;
-				align-items: center;
-				gap: 6px;
+			#searchModal .result:hover {
+				background-color: #3a3a3a;
 			}
 
-			#searchModal input {
-				flex: 1;
-				min-width: 0;
-			}
-
-			#searchModal button {
-				padding: 8px 12px;
-				font-size: 16px;
-				width: auto;
-			}
 
 			#searchToolbar {
 				display: flex;
@@ -100,11 +97,76 @@
 				justify-content: center;
 				align-items: center;
 				gap: 6px;
+				padding: 8px;
+				background-color: #1e1e1e; /* optional: to distinguish the toolbar from modal background */
+				border-bottom: 1px solid #444; /* subtle divider if needed */
 			}
 
 			#searchInput {
 				width: 180px;
 				max-width: 60vw;
+				padding: 8px 10px;
+				font-size: 16px;
+				background-color: #2a2a2a;
+				color: #ffffff;
+				border: 1px solid #444;
+				border-radius: 4px;
+				box-sizing: border-box;
+			}
+
+			#searchInput::placeholder {
+				color: #aaa;
+			}
+
+
+
+			#graph-container {
+				flex-grow: 1;
+				width: 100%;
+				position: relative;
+				width: 100%;
+				height: 100vh;
+				overflow: hidden;
+			}
+			
+			#bg-layer {
+			  position: absolute;
+			  width: 100%;
+			  height: 100%;
+			  background-image: url('space.jpg');
+			  background-repeat: repeat;
+			  background-size: cover;
+			  z-index: 0;
+			  filter: brightness(0.5); /* Darken the background */
+			}
+			
+			#glow-canvas {
+				position: absolute;
+				top: 0;
+				left: 0;
+				pointer-events: none;
+				z-index: 1;
+			}
+
+			#cy {
+				position: absolute;
+				width: 100%;
+				height: 100%;
+				z-index: 2;
+				background: transparent;
+			}
+			
+			#controls {
+				position: relative;
+				width: 100%;
+				background: #1e1e1e;
+				padding: 10px;
+				box-sizing: border-box;
+				display: flex;
+				flex-direction: column;
+				gap: 10px;
+				flex-shrink: 0;
+				color: #fff;
 			}
 
 			#controls > textarea,
@@ -113,12 +175,21 @@
 				font-size: 16px;
 				padding: 12px;
 				box-sizing: border-box;
+				background-color: #2a2a2a;
+				color: #ffffff;
+				border: 1px solid #444;
+				border-radius: 4px;
 			}
 
-			#cy {
-				flex-grow: 1;
-				width: 100%;
+			#controls > button:hover {
+				background-color: #333;
+				cursor: pointer;
 			}
+
+			#controls > textarea::placeholder {
+				color: #bbb;
+			}
+
 
 			@media (min-width: 768px) {
 				#container {
@@ -214,7 +285,11 @@
 					</div>
 				</div>
 			</div>
-			<div id="cy"></div>
+			<div id="graph-container">
+				<div id="bg-layer"></div>
+				<canvas id="glow-canvas"></canvas>
+				<div id="cy"></div>
+			</div>
 		</div>
 
 		<button id="promptButton" onclick="generatePromptNodes()">💡</button>
@@ -298,6 +373,9 @@
 			let currentPromptData = null;
 
 			window.onload = () => {
+				const canvas = document.getElementById('glow-canvas');
+				const ctx = canvas.getContext('2d');
+				
 				cy = cytoscape({
 					container: document.getElementById('cy'),
 					elements: loadData(),
@@ -305,28 +383,40 @@
 						{
 							selector: 'node',
 							style: {
-								shape: 'ellipse',
-								'background-color': '#4a90e2',
-								label: 'data(label)',
-								color: '#fff',
-								'text-valign': 'center',
-								'text-halign': 'center',
-								'text-wrap': 'wrap',
-								'text-max-width': '100px',
-								'font-size': '10px',
-								padding: '5px',
-								'border-width': 0,
-								'border-color': '#ffa500'
+							  shape: 'ellipse',
+							  'background-color': 'rgba(255, 255, 255, 1)', // transparent white background
+							  'background-opacity': 0.2,                      // ensure it's not fully solid
+							  'border-color': '#ffffff',
+							  'border-width': 2,
+
+							  // glow effect
+								'shadow-blur': 30,
+								'shadow-color': '#ffffff',
+								'shadow-opacity': 0.2,
+
+							  label: 'data(label)',
+							  color: '#ffffff',
+							  'font-size': '12px',
+							  'text-valign': 'center',
+							  'text-halign': 'center',
+							  'text-wrap': 'wrap',
+							  'text-max-width': '100px',
+							  padding: '5px',
+
+							  'z-index': 10
 							}
 						},
 						{
-							selector: 'edge',
-							style: {
-								width: 2,
-								'line-color': '#ccc',
-								'target-arrow-color': '#ccc',
-								'target-arrow-shape': 'triangle'
-							}
+						selector: 'edge',
+						  style: {
+							'width': 1,
+							'line-color': 'rgba(255, 255, 255, 0.3)', // translucent line
+							'target-arrow-color': 'rgba(255, 255, 255, 0.3)',
+							'curve-style': 'bezier',
+							'arrow-scale': 0.8,
+							'target-arrow-shape': 'triangle',
+							'z-index': 0
+						  }
 						},
 						{
 							selector: '.manual-selected',
@@ -350,45 +440,97 @@
 					},
 					wheelSensitivity: 0.1
 				});
+				resizeCanvas();
+				
+				function resizeCanvas() {
+				  const rect = cy.container().getBoundingClientRect();
+				  canvas.width = rect.width;
+				  canvas.height = rect.height;
+				}
+				
+				function drawGlows() {
+				  console.log("DrawGlows");
+				  ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-const debugBox = document.createElement('div');
-debugBox.style.position = 'fixed';
-debugBox.style.bottom = '0';
-debugBox.style.left = '0';
-debugBox.style.backgroundColor = 'rgba(0,0,0,0.7)';
-debugBox.style.color = '#fff';
-debugBox.style.padding = '6px 10px';
-debugBox.style.fontSize = '12px';
-debugBox.style.fontFamily = 'monospace';
-debugBox.style.zIndex = 100000;
-debugBox.style.whiteSpace = 'pre-wrap';
-// document.body.appendChild(debugBox);
+				  const zoom = cy.zoom();
+				  const pan = cy.pan();
 
-// Function to update debug info
-function updateDebugInfo() {
-  const zoom = cy.zoom();
-  const pan = cy.pan();
+					cy.nodes().forEach((node) => {
+					  const pos = node.position();
+					  const renderedX = pos.x * zoom + pan.x;
+					  const renderedY = pos.y * zoom + pan.y;
+					  // const renderedPos = cy.renderer().projectIntoViewport(pos.x, pos.y);
 
-  // Calculate viewport width and height in graph units
-  const graphViewportWidth = window.innerWidth / zoom;
-  const graphViewportHeight = window.innerHeight / zoom;
+					  const style = node.style();
+					  const nodeWidth = parseFloat(style.width);
+					  const nodeHeight = parseFloat(style.height);
+					  const nodeRadius = Math.max(nodeWidth, nodeHeight) / 2;
+					  
+						const childCount = node.outgoers('node').length; // Or however you're tracking children
+						const normalizedChildFactor = maxChildCount === 0 ? 0 : childCount / maxChildCount;
 
-  // Calculate viewport center in graph coordinates
-  const centerX = (window.innerWidth / 2 - pan.x) / zoom;
-  const centerY = (window.innerHeight / 2 - pan.y) / zoom;
+						// --- Glow radius decreases with more children
+						const baseGlowRadius = nodeRadius * zoom * 2.5;
+						const adjustedGlowRadius = baseGlowRadius * (1 - 0.7 * normalizedChildFactor);  // 0.3–1.0 of base size
 
-  debugBox.textContent =
-    `Viewport center (graph coords): x=${centerX.toFixed(2)}, y=${centerY.toFixed(2)}\n` +
-    `Viewport size (graph units): width=${graphViewportWidth.toFixed(2)}, height=${graphViewportHeight.toFixed(2)}\n` +
-    `Pan: x=${pan.x.toFixed(2)}, y=${pan.y.toFixed(2)}\n` +
-    `Zoom: ${zoom.toFixed(2)}`;
-}
+						// --- Glow opacity decreases with more children
+						const glowOpacity = 0.6 * (1 - normalizedChildFactor);  // 0.6 (few children) → 0 (many children)
 
-// Update on pan or zoom
-// cy.on('pan zoom', updateDebugInfo);
+						// --- Border/text opacity decreases with zoom & child count
+						const zoomFadeFactor = Math.min(1, zoom / 0.7); // fade when zoom < 0.7
+						const contentOpacity = 1 - (normalizedChildFactor * 0.7 + (1 - zoomFadeFactor) * 0.5); // blended fade
 
-// Initial update
-// updateDebugInfo();
+					  
+					  
+					  const innerRadius = nodeRadius * zoom;
+					  const outerRadius = innerRadius * 2;
+
+					  // Create radial gradient centered on node
+					  const gradient = ctx.createRadialGradient(
+						renderedX,
+						renderedY,
+						innerRadius * 1.01,  // small bright center
+						renderedX,
+						renderedY,
+						outerRadius         // outer edge radius
+					  );
+
+					  gradient.addColorStop(0, 'rgba(255, 255, 255, 0)');   // Bright cyan center
+					  gradient.addColorStop(0.2, 'rgba(255, 255, 255, 0.3)'); // Medium glow
+					  gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');     // Fully transparent edge
+
+					  ctx.beginPath();
+					  ctx.fillStyle = gradient;
+					  ctx.arc(renderedX, renderedY, outerRadius, 0, 2 * Math.PI);
+					  ctx.fill();
+					});
+				}
+								
+				window.addEventListener('resize', resizeCanvas);
+
+				cy.on('zoom', () => {
+				  const zoom = cy.zoom();
+				  const blurAmount = Math.max(0, (1 - zoom) * 3); // More blur at lower zoom
+				  const brightness = Math.max(0.15, Math.min(.5, zoom * 0.5));  // Dim when zoomed out
+
+				  const bg = document.getElementById('bg-layer');
+				  bg.style.filter = `brightness(${brightness}) blur(${blurAmount}px)`;
+				});
+
+
+				cy.on('pan zoom', () => {
+				  const pan = cy.pan();
+				  const zoom = cy.zoom();
+
+				  // Adjust background position and scale
+				  const bg = document.getElementById('bg-layer');
+				  bg.style.backgroundPosition = `${pan.x}px ${pan.y}px`;
+				  bg.style.backgroundSize = `${100 * zoom}%`;
+				});
+				
+				cy.on('render zoom pan drag position add remove', () => {
+				  drawGlows();
+				});
 
 				updateNodeIdCounter();
 				setupCustomSelection();
