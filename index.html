@@ -488,40 +488,21 @@
 				  const zoom = cy.zoom();
 				  const pan = cy.pan();
 
-				  const zoomMin = 0.2;
-				  const zoomMax = 1.0;
-
-				  // Clamp zoom from 0 to 1 for interpolation (1 = fully zoomed in, 0 = zoomMin or less)
-				  let zoomNorm = (zoom - zoomMin) / (zoomMax - zoomMin);
-				  zoomNorm = Math.min(Math.max(zoomNorm, 0), 1);
+				  const zoomMin = 0.5;
+				  const zoomMax = 0.25;
+				  
+				  const fadeProgress = Math.min(1, Math.max(0, (zoomMin - zoom) / (zoomMin - zoomMax)));
 
 				  cy.nodes().forEach(node => {
 					const childCount = node.outgoers('node').length;
-
-					// Map childCount 0..5+ into 0..1 scale (clamped)
 					const childNorm = Math.min(childCount / 5, 1);
 
-					// Compute dimming factor (opacity multiplier)
-					// At zoomNorm=0 (fully zoomed out), dimming strongest for high childNorm
-					// At zoomNorm=1 (zoomed in), no dimming at all
-					// So opacity scales with zoomNorm * (1 - childNorm)
-					// But we want dimming stronger for high childNorm, so invert childNorm for opacity:
-					// dimFactor = zoomNorm + (1 - zoomNorm)*(1 - childNorm)
-					// Actually better to do:
-					// opacity = lerp(1, 0.15, childNorm) * zoomNorm + (1-zoomNorm)*1 (no dim at zoom in)
-					// But simpler is:
-					let opacity;
-					if (zoom < zoomMin) {
-					  // At full zoom out, opacity is low for many children, high for few children
-					  opacity = 1 - childNorm * 0.85; // from 1 down to 0.15
-					} else if (zoom > zoomMax) {
-					  // No dimming at zoomed in
-					  opacity = 1;
-					} else {
-					  // interpolate between full effect and no effect
-					  const dimAtZoomOut = 1 - childNorm * 0.85;
-					  opacity = zoomNorm + (1 - zoomNorm) * dimAtZoomOut;
-					}
+					const minOpacity = 0.15;
+					const maxOpacity = 1;
+					
+					const targetOpacity = maxOpacity - (maxOpacity - minOpacity) * childNorm;
+					const opacity = 1 * (1 - fadeProgress) + targetOpacity * fadeProgress;
+
 
 					// Set node style opacity
 					node.style({
@@ -543,20 +524,30 @@
 				function drawGlows() {
 				  ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+					const pan = cy.pan();
 				  const zoom = cy.zoom();
-				  const pan = cy.pan();
+					const zoomEnd = 0.25; // fully zoomed out (max glow)
+					const zoomStart = 0.5; // start fading in glow
 
-					const zoomMax = 0.1; // fully zoomed out (max glow)
-					const zoomMin = 0.2; // start fading in glow
+					if (zoom > zoomStart) return; // no glow if zoomed in past threshold
 
-					if (zoom > zoomMin) return; // no glow if zoomed in past threshold
-
-					const fadeProgress = Math.min(1, Math.max(0, (zoomMin - zoom) / (zoomMin - zoomMax)));
+					const zoomFade = Math.min(1, Math.max(0, (zoomStart - zoom) / (zoomStart - zoomEnd)));
 
 
 				  cy.nodes().forEach(node => {
 					const childCount = node.outgoers('node').length;
-					if (childCount > 1) return; // glow only nodes with <= 1 child when zoomed out
+					
+					if (childCount > 0) return;
+					
+					const parentCount = node.incomers('node').length
+					const parentNorm = Math.min(parentCount / 5, 1);
+					
+					const zoomOpacity = zoomFade;
+					
+					const maxGlowAlpha = 0.5;
+					const minGlowAlpha = 0.2;
+					
+					const glowAlpha = (minGlowAlpha + (maxGlowAlpha - minGlowAlpha) * parentNorm) * zoomOpacity;
 
 					const pos = node.position();
 					const renderedX = pos.x * zoom + pan.x;
@@ -571,10 +562,6 @@
 					const innerGlowRadius = nodeRadius * zoom;
 					const outerGlowRadius = innerGlowRadius * (childCount === 0 ? 3.5 : 2.5);
 
-					// Glow opacity stronger for 0 children, weaker for 1 child
-					const baseGlowOpacity = childCount === 0 ? 0.5 : 0.25;
-					const glowOpacity = baseGlowOpacity * fadeProgress;
-
 					const gradient = ctx.createRadialGradient(
 					  renderedX,
 					  renderedY,
@@ -584,8 +571,8 @@
 					  outerGlowRadius
 					);
 
-					gradient.addColorStop(0, `rgba(255, 255, 255, ${glowOpacity})`);
-					gradient.addColorStop(0.2, `rgba(255, 255, 255, ${glowOpacity * 0.3})`);
+					gradient.addColorStop(0, `rgba(255, 255, 255, 0)`);
+					gradient.addColorStop(0.2, `rgba(255, 255, 255, ${glowAlpha})`);
 					gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
 
 					ctx.beginPath();
@@ -598,12 +585,27 @@
 				window.addEventListener('resize', resizeCanvas);
 
 				cy.on('zoom', () => {
-				  const zoom = cy.zoom();
-				  const blurAmount = Math.max(0, (1 - zoom) * 3); // More blur at lower zoom
-				  const brightness = Math.max(0.15, Math.min(.5, zoom * 0.5));  // Dim when zoomed out
+					const zoom = cy.zoom();
+					const zoomStart = 0.5;
+					const zoomEnd = 0.25;
+					const minBrightness = 0.5;
+					const maxBlur = 3;
 
-				  const bg = document.getElementById('bg-layer');
-				  bg.style.filter = `brightness(${brightness}) blur(${blurAmount}px)`;
+					let brightness;
+					if (zoom >= zoomStart) {
+						brightness = minBrightness;
+					} else if (zoom <= zoomEnd) {
+						brightness = 0;
+					} else {
+						const ratio = (zoom - zoomEnd) / (zoomStart - zoomEnd); // 0 to 1
+						brightness = ratio * minBrightness;
+					}
+
+					const zoomFade = Math.min(1, Math.max(0, (zoomStart - zoom) / (zoomStart - zoomEnd)));
+					const blurAmount = zoomFade * maxBlur;
+
+					const bg = document.getElementById('bg-layer');
+					bg.style.filter = `brightness(${brightness}) blur(${blurAmount}px)`;
 				});
 
 
