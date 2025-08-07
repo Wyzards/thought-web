@@ -484,46 +484,115 @@
 				  canvas.height = rect.height;
 				}
 				
+				function updateNodeVisuals() {
+				  const zoom = cy.zoom();
+				  const pan = cy.pan();
+
+				  const zoomMin = 0.2;
+				  const zoomMax = 1.0;
+
+				  // Clamp zoom from 0 to 1 for interpolation (1 = fully zoomed in, 0 = zoomMin or less)
+				  let zoomNorm = (zoom - zoomMin) / (zoomMax - zoomMin);
+				  zoomNorm = Math.min(Math.max(zoomNorm, 0), 1);
+
+				  cy.nodes().forEach(node => {
+					const childCount = node.outgoers('node').length;
+
+					// Map childCount 0..5+ into 0..1 scale (clamped)
+					const childNorm = Math.min(childCount / 5, 1);
+
+					// Compute dimming factor (opacity multiplier)
+					// At zoomNorm=0 (fully zoomed out), dimming strongest for high childNorm
+					// At zoomNorm=1 (zoomed in), no dimming at all
+					// So opacity scales with zoomNorm * (1 - childNorm)
+					// But we want dimming stronger for high childNorm, so invert childNorm for opacity:
+					// dimFactor = zoomNorm + (1 - zoomNorm)*(1 - childNorm)
+					// Actually better to do:
+					// opacity = lerp(1, 0.15, childNorm) * zoomNorm + (1-zoomNorm)*1 (no dim at zoom in)
+					// But simpler is:
+					let opacity;
+					if (zoom < zoomMin) {
+					  // At full zoom out, opacity is low for many children, high for few children
+					  opacity = 1 - childNorm * 0.85; // from 1 down to 0.15
+					} else if (zoom > zoomMax) {
+					  // No dimming at zoomed in
+					  opacity = 1;
+					} else {
+					  // interpolate between full effect and no effect
+					  const dimAtZoomOut = 1 - childNorm * 0.85;
+					  opacity = zoomNorm + (1 - zoomNorm) * dimAtZoomOut;
+					}
+
+					// Set node style opacity
+					node.style({
+					  'background-opacity': opacity * 0.2 + 0.1, // keep base opacity, adjust with factor
+					  'border-opacity': opacity,
+					  'text-opacity': opacity,
+					  'color': '#ffffff'
+					});
+
+					// Now glow: Only glow if zoom < zoomMin and childCount <= 1
+					// Glow intensity inversely proportional to childCount (max glow for 0 children)
+					// Let's define glowOpacity and glowRadius for canvas glow draw
+				  });
+
+				  // Clear and redraw glow canvas for nodes that qualify
+				  drawGlows();
+				}
+				
 				function drawGlows() {
-				  console.log("DrawGlows");
 				  ctx.clearRect(0, 0, canvas.width, canvas.height);
 
 				  const zoom = cy.zoom();
 				  const pan = cy.pan();
 
-					cy.nodes().forEach((node) => {
-					  const pos = node.position();
-					  const renderedX = pos.x * zoom + pan.x;
-					  const renderedY = pos.y * zoom + pan.y;
-					  // const renderedPos = cy.renderer().projectIntoViewport(pos.x, pos.y);
+					const zoomMax = 0.1; // fully zoomed out (max glow)
+					const zoomMin = 0.2; // start fading in glow
 
-					  const style = node.style();
-					  const nodeWidth = parseFloat(style.width);
-					  const nodeHeight = parseFloat(style.height);
-					  const nodeRadius = Math.max(nodeWidth, nodeHeight) / 2;
-					  
-					  const innerRadius = nodeRadius * zoom;
-					  const outerRadius = innerRadius * 2;
+					if (zoom > zoomMin) return; // no glow if zoomed in past threshold
 
-					  // Create radial gradient centered on node
-					  const gradient = ctx.createRadialGradient(
-						renderedX,
-						renderedY,
-						innerRadius * 1.01,  // small bright center
-						renderedX,
-						renderedY,
-						outerRadius         // outer edge radius
-					  );
+					const fadeProgress = Math.min(1, Math.max(0, (zoomMin - zoom) / (zoomMin - zoomMax)));
 
-					  gradient.addColorStop(0, 'rgba(255, 255, 255, 0)');   // Bright cyan center
-					  gradient.addColorStop(0.2, 'rgba(255, 255, 255, 0.3)'); // Medium glow
-					  gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');     // Fully transparent edge
 
-					  ctx.beginPath();
-					  ctx.fillStyle = gradient;
-					  ctx.arc(renderedX, renderedY, outerRadius, 0, 2 * Math.PI);
-					  ctx.fill();
-					});
+				  cy.nodes().forEach(node => {
+					const childCount = node.outgoers('node').length;
+					if (childCount > 1) return; // glow only nodes with <= 1 child when zoomed out
+
+					const pos = node.position();
+					const renderedX = pos.x * zoom + pan.x;
+					const renderedY = pos.y * zoom + pan.y;
+
+					const style = node.style();
+					const nodeWidth = parseFloat(style.width);
+					const nodeHeight = parseFloat(style.height);
+					const nodeRadius = Math.max(nodeWidth, nodeHeight) / 2;
+
+					// Glow radius bigger for 0 children, smaller for 1 child
+					const innerGlowRadius = nodeRadius * zoom;
+					const outerGlowRadius = innerGlowRadius * (childCount === 0 ? 3.5 : 2.5);
+
+					// Glow opacity stronger for 0 children, weaker for 1 child
+					const baseGlowOpacity = childCount === 0 ? 0.5 : 0.25;
+					const glowOpacity = baseGlowOpacity * fadeProgress;
+
+					const gradient = ctx.createRadialGradient(
+					  renderedX,
+					  renderedY,
+					  innerGlowRadius * 1.01,
+					  renderedX,
+					  renderedY,
+					  outerGlowRadius
+					);
+
+					gradient.addColorStop(0, `rgba(255, 255, 255, ${glowOpacity})`);
+					gradient.addColorStop(0.2, `rgba(255, 255, 255, ${glowOpacity * 0.3})`);
+					gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+
+					ctx.beginPath();
+					ctx.fillStyle = gradient;
+					ctx.arc(renderedX, renderedY, outerGlowRadius, 0, 2 * Math.PI);
+					ctx.fill();
+				  });
 				}
 								
 				window.addEventListener('resize', resizeCanvas);
@@ -549,7 +618,7 @@
 				});
 				
 				cy.on('render zoom pan drag position add remove', () => {
-				  //drawGlows();
+					updateNodeVisuals();
 				});
 
 				updateNodeIdCounter();
@@ -854,20 +923,37 @@
 
 			function addLinkedNode() {
 				if (selectionQueue.length !== 1) return alert('Select exactly one node to link from.');
+				
 				const input = document.getElementById('thoughtInput');
 				const text = input.value.trim();
+				
 				if (!text) return;
+				
 				const fromId = selectionQueue[0].id();
 				const id = `n${nodeId++}`;
-				const size = estimateSphereSize(text);
+				
+				const { labelWidth, nodeSize } = calculateSquareTextBoxSize(text);
+				const newPosition = findEmptySpotNear(selectionQueue[0].position());
 
 				cy.add([
-					{
-						data: { id, label: text, size, parentId: fromId },
-						position: findEmptySpotNear(selectionQueue[0].position())
-					},
-					{ data: { id: `e${fromId}_${id}`, source: fromId, target: id } }
-				]);
+						{
+							data: {
+								id,
+								label: text,
+								parentId: fromId,
+								labelWidth,
+								nodeSize
+							},
+							position: newPosition
+						},
+						{
+							data: {
+								id: `e${fromId}_${id}`,
+								source: fromId,
+								target: id
+							}
+						}
+					]);
 
 				input.value = '';
 				clearSelection();
@@ -1232,4 +1318,3 @@
 		</script>
 	</body>
 </html>
-
