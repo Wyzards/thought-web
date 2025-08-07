@@ -864,7 +864,6 @@
 				cy.add([
 					{
 						data: { id, label: text, size, parentId: fromId },
-						style: { width: `${size}px`, height: `${size}px` },
 						position: findEmptySpotNear(selectionQueue[0].position())
 					},
 					{ data: { id: `e${fromId}_${id}`, source: fromId, target: id } }
@@ -1233,3 +1232,4 @@
 		</script>
 	</body>
 </html>
+
