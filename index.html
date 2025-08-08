@@ -495,12 +495,11 @@
 
 				  cy.nodes().forEach(node => {
 					const childCount = node.outgoers('node').length;
-					const childNorm = Math.min(childCount / 5, 1);
-
+					
 					const minOpacity = 0.15;
 					const maxOpacity = 1;
 					
-					const targetOpacity = maxOpacity - (maxOpacity - minOpacity) * childNorm;
+					const targetOpacity = maxOpacity - (maxOpacity - minOpacity) * (childCount > 0 ? 1 : 0.05);
 					const opacity = 1 * (1 - fadeProgress) + targetOpacity * fadeProgress;
 
 
@@ -518,7 +517,7 @@
 				  });
 
 				  // Clear and redraw glow canvas for nodes that qualify
-				  drawGlows();
+				  // drawGlows();
 				}
 				
 				function drawGlows() {
@@ -588,7 +587,7 @@
 					const zoom = cy.zoom();
 					const zoomStart = 0.5;
 					const zoomEnd = 0.25;
-					const minBrightness = 0.5;
+					const minBrightness = 0.4;
 					const maxBlur = 3;
 
 					let brightness;
@@ -605,7 +604,7 @@
 					const blurAmount = zoomFade * maxBlur;
 
 					const bg = document.getElementById('bg-layer');
-					bg.style.filter = `brightness(${brightness}) blur(${blurAmount}px)`;
+					bg.style.filter = `brightness(${brightness})`;
 				});
 
 
