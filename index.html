@@ -621,18 +621,22 @@
 
 				window.addEventListener('resize', resizeCanvas);
 
+				cy.on('touchstart tapstart', 'node', (evt) => {
+					longPressTimer = setTimeout(() => {
+						const node = evt.target;
+						showContextMenuAt(evt, node);
+					}, 500); // 500ms long press duration
+				});
+
+				cy.on('touchend tapend tapdrag', 'node', (evt) => {
+					if (longPressTimer) {
+						clearTimeout(longPressTimer);
+						longPressTimer = null;
+					}
+				});
+
 				cy.on('cxttap', 'node', function (evt) {
-					contextNode = evt.target;
-					const menu = document.getElementById('nodeContextMenu');
-					const rect = cy.container().getBoundingClientRect();
-
-					const x = rect.left + evt.renderedPosition.x;
-					const y = rect.top + evt.renderedPosition.y;
-
-					// Position menu
-					menu.style.left = x + 'px';
-					menu.style.top = y + 'px';
-					menu.style.display = 'block';
+					showContextMenuAt(evt, evt.target);
 				});
 
 				// Hide menu if clicking elsewhere
@@ -810,6 +814,25 @@
 					saveData();
 				}
 				document.getElementById('nodeContextMenu').style.display = 'none';
+			}
+
+			function showContextMenuAt(evt, node) {
+				const menu = document.getElementById('nodeContextMenu');
+				const rect = cy.container().getBoundingClientRect();
+
+				// Use the originalEvent to get pageX/Y for best positioning
+				const x = evt.originalEvent.touches
+					? evt.originalEvent.touches[0].pageX
+					: evt.originalEvent.pageX;
+				const y = evt.originalEvent.touches
+					? evt.originalEvent.touches[0].pageY
+					: evt.originalEvent.pageY;
+
+				menu.style.left = x + 'px';
+				menu.style.top = y + 'px';
+				menu.style.display = 'block';
+
+				contextNode = node;
 			}
 
 			function openEditModal() {
