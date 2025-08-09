@@ -84,7 +84,7 @@
 				gap: 6px;
 			}
 
-			#searchModal input[type="text"]::placeholder,
+			#searchModal input[type='text']::placeholder,
 			#searchModal textarea::placeholder {
 				color: #bbb;
 			}
@@ -146,18 +146,18 @@
 				height: 100vh;
 				overflow: hidden;
 			}
-			
+
 			#bg-layer {
-			  position: absolute;
-			  width: 100%;
-			  height: 100%;
-			  background-image: url('space.jpg');
-			  background-repeat: repeat;
-			  background-size: cover;
-			  z-index: 0;
-			  filter: brightness(0.5); /* Darken the background */
+				position: absolute;
+				width: 100%;
+				height: 100%;
+				background-image: url('space.jpg');
+				background-repeat: repeat;
+				background-size: cover;
+				z-index: 0;
+				filter: brightness(0.5); /* Darken the background */
 			}
-			
+
 			#glow-canvas {
 				position: absolute;
 				top: 0;
@@ -173,7 +173,7 @@
 				z-index: 2;
 				background: transparent;
 			}
-			
+
 			#controls {
 				position: relative;
 				width: 100%;
@@ -207,7 +207,6 @@
 			#controls > textarea::placeholder {
 				color: #bbb;
 			}
-
 
 			@media (min-width: 768px) {
 				#container {
@@ -280,20 +279,20 @@
 				border-style: dashed;
 				opacity: 0.8;
 			}
-			
+
 			#textMeasurer {
-			  position: absolute;
-			  visibility: hidden;
-			  font-size: 12px;
-			  font-family: sans-serif;
-			  line-height: 1.2;
-			  padding: 4px;
-			  box-sizing: border-box;
-			  white-space: normal;
-			  word-wrap: break-word;
-			  width: auto;
-			  max-width: none;
-			  display: inline-block;
+				position: absolute;
+				visibility: hidden;
+				font-size: 12px;
+				font-family: sans-serif;
+				line-height: 1.2;
+				padding: 4px;
+				box-sizing: border-box;
+				white-space: normal;
+				word-wrap: break-word;
+				width: auto;
+				max-width: none;
+				display: inline-block;
 			}
 		</style>
 	</head>
@@ -409,7 +408,7 @@
 			window.onload = () => {
 				const canvas = document.getElementById('glow-canvas');
 				const ctx = canvas.getContext('2d');
-				
+
 				cy = cytoscape({
 					container: document.getElementById('cy'),
 					elements: loadData(),
@@ -417,42 +416,42 @@
 						{
 							selector: 'node',
 							style: {
-							  shape: 'ellipse',
-							  'background-color': 'rgba(255, 255, 255, 1)', // transparent white background
-							  'background-opacity': 0.2,                      // ensure it's not fully solid
-							  'border-color': '#ffffff',
-							  'border-width': 2,
+								shape: 'ellipse',
+								'background-color': 'rgba(255, 255, 255, 1)', // transparent white background
+								'background-opacity': 0.2, // ensure it's not fully solid
+								'border-color': '#ffffff',
+								'border-width': 2,
 
-							  // glow effect
+								// glow effect
 								'shadow-blur': 30,
 								'shadow-color': '#ffffff',
 								'shadow-opacity': 0.2,
 
-							  label: 'data(label)',
-							  color: '#ffffff',
-							  'font-size': 12,
-							  'text-valign': 'center',
-							  'text-halign': 'center',
-							  'text-wrap': 'wrap',
-							  'text-max-width': 'data(labelWidth)',
-							  'width': 'data(nodeSize)',
-							  'height': 'data(nodeSize)',
-							  padding: '5px',
+								label: 'data(label)',
+								color: '#ffffff',
+								'font-size': 12,
+								'text-valign': 'center',
+								'text-halign': 'center',
+								'text-wrap': 'wrap',
+								'text-max-width': 'data(labelWidth)',
+								width: 'data(nodeSize)',
+								height: 'data(nodeSize)',
+								padding: '5px',
 
-							  'z-index': 10
+								'z-index': 10
 							}
 						},
 						{
-						selector: 'edge',
-						  style: {
-							'width': 1,
-							'line-color': 'rgba(255, 255, 255, 0.3)', // translucent line
-							'target-arrow-color': 'rgba(255, 255, 255, 0.3)',
-							'curve-style': 'bezier',
-							'arrow-scale': 0.8,
-							'target-arrow-shape': 'triangle',
-							'z-index': 0
-						  }
+							selector: 'edge',
+							style: {
+								width: 1,
+								'line-color': 'rgba(255, 255, 255, 0.3)', // translucent line
+								'target-arrow-color': 'rgba(255, 255, 255, 0.3)',
+								'curve-style': 'bezier',
+								'arrow-scale': 0.8,
+								'target-arrow-shape': 'triangle',
+								'z-index': 0
+							}
 						},
 						{
 							selector: '.manual-selected',
@@ -477,54 +476,67 @@
 					wheelSensitivity: 0.1
 				});
 				resizeCanvas();
-				
+
 				function resizeCanvas() {
-				  const rect = cy.container().getBoundingClientRect();
-				  canvas.width = rect.width;
-				  canvas.height = rect.height;
+					const rect = cy.container().getBoundingClientRect();
+					canvas.width = rect.width;
+					canvas.height = rect.height;
 				}
-				
+
 				function updateNodeVisuals() {
-				  const zoom = cy.zoom();
-				  const pan = cy.pan();
+					const zoom = cy.zoom();
+					const pan = cy.pan();
 
-				  const zoomMin = 0.5;
-				  const zoomMax = 0.25;
-				  
-				  const fadeProgress = Math.min(1, Math.max(0, (zoomMin - zoom) / (zoomMin - zoomMax)));
+					const zoomMin = 0.5;
+					const zoomMax = 0.25;
 
-				  cy.nodes().forEach(node => {
-					const childCount = node.outgoers('node').length;
-					
-					const minOpacity = 0.15;
-					const maxOpacity = 1;
-					
-					const targetOpacity = maxOpacity - (maxOpacity - minOpacity) * (childCount > 0 ? 1 : 0.05);
-					const opacity = 1 * (1 - fadeProgress) + targetOpacity * fadeProgress;
+					const fadeProgress = Math.min(1, Math.max(0, (zoomMin - zoom) / (zoomMin - zoomMax)));
 
+					cy.nodes().forEach((node) => {
+						const childCount = node.outgoers('node').length;
+						const parentCount = node.incomers('node').length;
 
-					// Set node style opacity
-					node.style({
-					  'background-opacity': opacity * 0.2 + 0.1, // keep base opacity, adjust with factor
-					  'border-opacity': opacity,
-					  'text-opacity': opacity,
-					  'color': '#ffffff'
+						const minOpacity = 0.15;
+						const maxOpacity = 1;
+
+						const targetOpacity =
+							maxOpacity - (maxOpacity - minOpacity) * (childCount > 0 ? 1 : 0.05);
+						const opacity = 1 * (1 - fadeProgress) + targetOpacity * fadeProgress;
+
+						// Set node style opacity
+						if (parentCount === 0) {
+							node.style({
+								'background-opacity': opacity * 0.2 + 0.1, // keep base opacity, adjust with factor
+								'border-opacity': opacity,
+								'text-opacity': opacity,
+								'background-color': `rgb(255, ${Math.round(255 * (1 - fadeProgress))}, ${Math.round(
+									255 * (1 - fadeProgress)
+								)})`,
+								color: '#ffffff'
+							});
+						} else {
+							node.style({
+								'background-opacity': opacity * 0.2 + 0.1, // keep base opacity, adjust with factor
+								'border-opacity': opacity,
+								'text-opacity': opacity,
+								color: '#ffffff'
+							});
+						}
+
+						// Now glow: Only glow if zoom < zoomMin and childCount <= 1
+						// Glow intensity inversely proportional to childCount (max glow for 0 children)
+						// Let's define glowOpacity and glowRadius for canvas glow draw
 					});
 
-					// Now glow: Only glow if zoom < zoomMin and childCount <= 1
-					// Glow intensity inversely proportional to childCount (max glow for 0 children)
-					// Let's define glowOpacity and glowRadius for canvas glow draw
-				  });
-
-				  // Clear and redraw glow canvas for nodes that qualify
-				  // drawGlows();
+					// Clear and redraw glow canvas for nodes that qualify
+					// drawGlows();
 				}
-				
+
 				function drawGlows() {
-				  ctx.clearRect(0, 0, canvas.width, canvas.height);
+					ctx.clearRect(0, 0, canvas.width, canvas.height);
 
 					const pan = cy.pan();
-				  const zoom = cy.zoom();
+					const zoom = cy.zoom();
 					const zoomEnd = 0.25; // fully zoomed out (max glow)
 					const zoomStart = 0.5; // start fading in glow
 
@@ -532,55 +544,55 @@
 
 					const zoomFade = Math.min(1, Math.max(0, (zoomStart - zoom) / (zoomStart - zoomEnd)));
 
+					cy.nodes().forEach((node) => {
+						const childCount = node.outgoers('node').length;
 
-				  cy.nodes().forEach(node => {
-					const childCount = node.outgoers('node').length;
-					
-					if (childCount > 0) return;
-					
-					const parentCount = node.incomers('node').length
-					const parentNorm = Math.min(parentCount / 5, 1);
-					
-					const zoomOpacity = zoomFade;
-					
-					const maxGlowAlpha = 0.5;
-					const minGlowAlpha = 0.2;
-					
-					const glowAlpha = (minGlowAlpha + (maxGlowAlpha - minGlowAlpha) * parentNorm) * zoomOpacity;
+						if (childCount > 0) return;
 
-					const pos = node.position();
-					const renderedX = pos.x * zoom + pan.x;
-					const renderedY = pos.y * zoom + pan.y;
+						const parentCount = node.incomers('node').length;
+						const parentNorm = Math.min(parentCount / 5, 1);
 
-					const style = node.style();
-					const nodeWidth = parseFloat(style.width);
-					const nodeHeight = parseFloat(style.height);
-					const nodeRadius = Math.max(nodeWidth, nodeHeight) / 2;
+						const zoomOpacity = zoomFade;
 
-					// Glow radius bigger for 0 children, smaller for 1 child
-					const innerGlowRadius = nodeRadius * zoom;
-					const outerGlowRadius = innerGlowRadius * (childCount === 0 ? 3.5 : 2.5);
+						const maxGlowAlpha = 0.5;
+						const minGlowAlpha = 0.2;
 
-					const gradient = ctx.createRadialGradient(
-					  renderedX,
-					  renderedY,
-					  innerGlowRadius * 1.01,
-					  renderedX,
-					  renderedY,
-					  outerGlowRadius
-					);
+						const glowAlpha =
+							(minGlowAlpha + (maxGlowAlpha - minGlowAlpha) * parentNorm) * zoomOpacity;
 
-					gradient.addColorStop(0, `rgba(255, 255, 255, 0)`);
-					gradient.addColorStop(0.2, `rgba(255, 255, 255, ${glowAlpha})`);
-					gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+						const pos = node.position();
+						const renderedX = pos.x * zoom + pan.x;
+						const renderedY = pos.y * zoom + pan.y;
 
-					ctx.beginPath();
-					ctx.fillStyle = gradient;
-					ctx.arc(renderedX, renderedY, outerGlowRadius, 0, 2 * Math.PI);
-					ctx.fill();
-				  });
+						const style = node.style();
+						const nodeWidth = parseFloat(style.width);
+						const nodeHeight = parseFloat(style.height);
+						const nodeRadius = Math.max(nodeWidth, nodeHeight) / 2;
+
+						// Glow radius bigger for 0 children, smaller for 1 child
+						const innerGlowRadius = nodeRadius * zoom;
+						const outerGlowRadius = innerGlowRadius * (childCount === 0 ? 3.5 : 2.5);
+
+						const gradient = ctx.createRadialGradient(
+							renderedX,
+							renderedY,
+							innerGlowRadius * 1.01,
+							renderedX,
+							renderedY,
+							outerGlowRadius
+						);
+
+						gradient.addColorStop(0, `rgba(255, 255, 255, 0)`);
+						gradient.addColorStop(0.2, `rgba(255, 255, 255, ${glowAlpha})`);
+						gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+
+						ctx.beginPath();
+						ctx.fillStyle = gradient;
+						ctx.arc(renderedX, renderedY, outerGlowRadius, 0, 2 * Math.PI);
+						ctx.fill();
+					});
 				}
-								
+
 				window.addEventListener('resize', resizeCanvas);
 
 				cy.on('zoom', () => {
@@ -607,17 +619,16 @@
 					bg.style.filter = `brightness(${brightness})`;
 				});
 
-
 				cy.on('pan zoom', () => {
-				  const pan = cy.pan();
-				  const zoom = cy.zoom();
+					const pan = cy.pan();
+					const zoom = cy.zoom();
 
-				  // Adjust background position and scale
-				  const bg = document.getElementById('bg-layer');
-				  bg.style.backgroundPosition = `${pan.x}px ${pan.y}px`;
-				  bg.style.backgroundSize = `${100 * zoom}%`;
+					// Adjust background position and scale
+					const bg = document.getElementById('bg-layer');
+					bg.style.backgroundPosition = `${pan.x}px ${pan.y}px`;
+					bg.style.backgroundSize = `${100 * zoom}%`;
 				});
-				
+
 				cy.on('render zoom pan drag position add remove', () => {
 					updateNodeVisuals();
 				});
@@ -648,60 +659,59 @@
 			let searchIndex = 0;
 
 			function calculateSquareTextBoxSize(text) {
-			  const measurer = document.getElementById("textMeasurer");
+				const measurer = document.getElementById('textMeasurer');
 
-			  // Setup styles to match your font, padding etc
-			  measurer.style.fontSize = "12px";
-			  measurer.style.fontFamily = "sans-serif";
-			  measurer.style.lineHeight = "1.2";
-			  measurer.style.padding = "4px";
-			  measurer.style.boxSizing = "border-box";
-			  measurer.style.whiteSpace = "normal";
-			  measurer.style.wordWrap = "break-word";
-			  measurer.style.visibility = "hidden";
-			  measurer.style.position = "absolute";
+				// Setup styles to match your font, padding etc
+				measurer.style.fontSize = '12px';
+				measurer.style.fontFamily = 'sans-serif';
+				measurer.style.lineHeight = '1.2';
+				measurer.style.padding = '4px';
+				measurer.style.boxSizing = 'border-box';
+				measurer.style.whiteSpace = 'normal';
+				measurer.style.wordWrap = 'break-word';
+				measurer.style.visibility = 'hidden';
+				measurer.style.position = 'absolute';
 
-			  measurer.innerText = text;
+				measurer.innerText = text;
 
-			  const paddingPx = 16;
+				const paddingPx = 16;
 
-			  let min = 30;
-			  let max = 300;
+				let min = 30;
+				let max = 300;
 
-			  // Step 1: Increase max until height fits in square box (height <= width)
-			  while (true) {
-				measurer.style.width = max + "px";
-				const height = measurer.scrollHeight;
+				// Step 1: Increase max until height fits in square box (height <= width)
+				while (true) {
+					measurer.style.width = max + 'px';
+					const height = measurer.scrollHeight;
 
-				if (height <= max) break;  // found a width where it fits
-				max *= 2;                  // double max and try again
-			  }
-
-			  // Step 2: Binary search between min and max to find minimal fitting square size
-			  let bestWidth = max;
-
-			  while (min <= max) {
-				const mid = Math.floor((min + max) / 2);
-
-				measurer.style.width = mid + "px";
-				const height = measurer.scrollHeight;
-
-				if (height <= mid) {
-				  bestWidth = mid;
-				  max = mid - 1;
-				} else {
-				  min = mid + 1;
+					if (height <= max) break; // found a width where it fits
+					max *= 2; // double max and try again
 				}
-			  }
-			  
-			  const nodeSize = Math.ceil(bestWidth * Math.SQRT2);
 
-			  return {
-				labelWidth: bestWidth,
-				nodeSize: nodeSize
-			  };
+				// Step 2: Binary search between min and max to find minimal fitting square size
+				let bestWidth = max;
+
+				while (min <= max) {
+					const mid = Math.floor((min + max) / 2);
+
+					measurer.style.width = mid + 'px';
+					const height = measurer.scrollHeight;
+
+					if (height <= mid) {
+						bestWidth = mid;
+						max = mid - 1;
+					} else {
+						min = mid + 1;
+					}
+				}
+
+				const nodeSize = Math.ceil(bestWidth * Math.SQRT2);
+
+				return {
+					labelWidth: bestWidth,
+					nodeSize: nodeSize
+				};
 			}
-
 
 			function openEditModal() {
 				if (selectionQueue.length !== 1) return;
@@ -716,25 +726,25 @@
 
 			function submitNodeEdit() {
 				if (selectionQueue.length !== 1) return;
-				
+
 				const newText = document.getElementById('editNodeTextarea').value.trim();
 				if (!newText) return;
-				
+
 				const selected = selectionQueue[0];
 				selected.data('label', newText);
 
 				// Recalculate sizes based on new text
-				  const { labelWidth, nodeSize } = calculateSquareTextBoxSize(newText);
+				const { labelWidth, nodeSize } = calculateSquareTextBoxSize(newText);
 
-				  // Update data fields for global style usage
-				  selected.data('labelWidth', labelWidth);
-				  selected.data('nodeSize', nodeSize);
+				// Update data fields for global style usage
+				selected.data('labelWidth', labelWidth);
+				selected.data('nodeSize', nodeSize);
 
-				  // Remove inline width/height style to avoid conflicts
-				  selected.style({
+				// Remove inline width/height style to avoid conflicts
+				selected.style({
 					width: '',
 					height: ''
-				  });
+				});
 
 				saveData();
 				closeEditModal();
@@ -860,17 +870,17 @@
 							prompts: Array.isArray(el.data?.prompts) ? el.data.prompts : []
 						};
 
-					 // Make sure labelWidth and nodeSize exist and are numbers, else fallback
+						// Make sure labelWidth and nodeSize exist and are numbers, else fallback
 						if (typeof el.data.labelWidth !== 'number' || typeof el.data.nodeSize !== 'number') {
-						  const { labelWidth, nodeSize } = calculateSquareTextBoxSize(el.data.label || '');
-						  el.data.labelWidth = labelWidth;
-						  el.data.nodeSize = nodeSize;
+							const { labelWidth, nodeSize } = calculateSquareTextBoxSize(el.data.label || '');
+							el.data.labelWidth = labelWidth;
+							el.data.nodeSize = nodeSize;
 						}
 
 						// Remove inline style overrides to let global style take control
 						if (el.style) {
-						  delete el.style.width;
-						  delete el.style.height;
+							delete el.style.width;
+							delete el.style.height;
 						}
 					}
 					return el;
@@ -890,7 +900,6 @@
 				if (!content) return;
 				const id = `n${nodeId++}`;
 				const { labelWidth, nodeSize } = calculateSquareTextBoxSize(content);
-
 
 				if (!position) {
 					const zoom = cy.zoom();
@@ -912,7 +921,7 @@
 				}
 
 				cy.add({
-					data: { id: id, label: content, labelWidth: labelWidth, nodeSize: nodeSize},
+					data: { id: id, label: content, labelWidth: labelWidth, nodeSize: nodeSize },
 					position: position
 				});
 
@@ -920,41 +929,39 @@
 				saveData();
 			}
 
-
-
 			function addLinkedNode() {
 				if (selectionQueue.length !== 1) return alert('Select exactly one node to link from.');
-				
+
 				const input = document.getElementById('thoughtInput');
 				const text = input.value.trim();
-				
+
 				if (!text) return;
-				
+
 				const fromId = selectionQueue[0].id();
 				const id = `n${nodeId++}`;
-				
+
 				const { labelWidth, nodeSize } = calculateSquareTextBoxSize(text);
 				const newPosition = findEmptySpotNear(selectionQueue[0].position());
 
 				cy.add([
-						{
-							data: {
-								id,
-								label: text,
-								parentId: fromId,
-								labelWidth,
-								nodeSize
-							},
-							position: newPosition
+					{
+						data: {
+							id,
+							label: text,
+							parentId: fromId,
+							labelWidth,
+							nodeSize
 						},
-						{
-							data: {
-								id: `e${fromId}_${id}`,
-								source: fromId,
-								target: id
-							}
+						position: newPosition
+					},
+					{
+						data: {
+							id: `e${fromId}_${id}`,
+							source: fromId,
+							target: id
 						}
-					]);
+					}
+				]);
 
 				input.value = '';
 				clearSelection();
