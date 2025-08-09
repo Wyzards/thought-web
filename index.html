@@ -621,14 +621,14 @@
 
 				window.addEventListener('resize', resizeCanvas);
 
-				cy.on('touchstart tapstart', 'node', (evt) => {
+				cy.on('touchstart', 'node', (evt) => {
 					longPressTimer = setTimeout(() => {
 						const node = evt.target;
 						showContextMenuAt(evt, node);
-					}, 500); // 500ms long press duration
+					}, 1000); // 500ms long press duration
 				});
 
-				cy.on('touchend tapend tapdrag', 'node', (evt) => {
+				cy.on('touchend touchcancel touchleave', 'node', (evt) => {
 					if (longPressTimer) {
 						clearTimeout(longPressTimer);
 						longPressTimer = null;
@@ -833,6 +833,11 @@
 				menu.style.display = 'block';
 
 				contextNode = node;
+			}
+
+			function hideContextMenu() {
+				const menu = document.getElementById('nodeContextMenu');
+				menu.style.display = 'none';
 			}
 
 			function openEditModal() {
@@ -1400,6 +1405,10 @@
 				let dragStartPosition = null;
 				let lastDragPosition = null;
 				let initialPositions = {};
+
+				cy.on('pan zoom grab', () => {
+					hideContextMenu();
+				});
 
 				cy.on('grab', 'node', function (e) {
 					const grabbed = e.target;
