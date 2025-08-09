@@ -621,11 +621,17 @@
 
 				window.addEventListener('resize', resizeCanvas);
 
+				let touchStartPos = null;
+				let contextMenuOpen = false;
+				const MOVE_THRESHOLD = 10; // pixels
+
 				cy.on('touchstart', 'node', (evt) => {
+					const t = evt.originalEvent.touches[0];
+					touchStartPos = { x: t.clientX, y: t.clientY };
 					longPressTimer = setTimeout(() => {
 						const node = evt.target;
 						showContextMenuAt(evt, node);
-					}, 1000); // 500ms long press duration
+					}, 750); // 500ms long press duration
 				});
 
 				cy.on('touchend touchcancel touchleave', 'node', (evt) => {
@@ -635,14 +641,29 @@
 					}
 				});
 
+				cy.on('touchmove', (evt) => {
+					if (!touchStartPos) return;
+					const t = evt.originalEvent.touches[0];
+					const dx = t.clientX - touchStartPos.x;
+					const dy = t.clientY - touchStartPos.y;
+					if (Math.sqrt(dx * dx + dy * dy) > MOVE_THRESHOLD) {
+						// User moved finger significantly => cancel long press and hide menu if open
+						if (longPressTimer) {
+							clearTimeout(longPressTimer);
+							longPressTimer = null;
+						}
+						hideContextMenu();
+					}
+				});
+
 				cy.on('cxttap', 'node', function (evt) {
 					showContextMenuAt(evt, evt.target);
 				});
 
 				// Hide menu if clicking elsewhere
-				cy.on('tap', function (evt) {
-					if (!evt.target.isNode || evt.target === contextNode) {
-						document.getElementById('nodeContextMenu').style.display = 'none';
+				cy.on('touchstart', (evt) => {
+					if (!evt.target.isNode?.() || evt.target === contextNode) {
+						hideContextMenu();
 					}
 				});
 
@@ -805,7 +826,7 @@
 					selectChildrenRecursively(contextNode);
 					saveData();
 				}
-				document.getElementById('nodeContextMenu').style.display = 'none';
+				hideContextMenu();
 			}
 
 			function selectClusterFromMenu() {
@@ -813,7 +834,7 @@
 					selectClusterRecursively(contextNode);
 					saveData();
 				}
-				document.getElementById('nodeContextMenu').style.display = 'none';
+				hideContextMenu();
 			}
 
 			function showContextMenuAt(evt, node) {
@@ -833,6 +854,7 @@
 				menu.style.display = 'block';
 
 				contextNode = node;
+				contextMenuOpen = true;
 			}
 
 			function hideContextMenu() {
@@ -1405,10 +1427,6 @@
 				let dragStartPosition = null;
 				let lastDragPosition = null;
 				let initialPositions = {};
-
-				cy.on('pan zoom grab', () => {
-					hideContextMenu();
-				});
 
 				cy.on('grab', 'node', function (e) {
 					const grabbed = e.target;
