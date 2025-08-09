@@ -500,7 +500,8 @@
 						const maxOpacity = 1;
 
 						const targetOpacity =
-							maxOpacity - (maxOpacity - minOpacity) * (childCount > 0 ? 1 : 0.05);
+							maxOpacity -
+							(maxOpacity - minOpacity) * (childCount == 0 || parentCount == 0 ? 0.05 : 1);
 						const opacity = 1 * (1 - fadeProgress) + targetOpacity * fadeProgress;
 
 						// Set node style opacity
