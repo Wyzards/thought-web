@@ -21,6 +21,15 @@
 				height: 100vh;
 			}
 
+			#nodeContextMenu .menu-item {
+				padding: 6px 12px;
+				cursor: pointer;
+			}
+
+			#nodeContextMenu .menu-item:hover {
+				background: #3a3a3a;
+			}
+
 			#editModal {
 				position: fixed;
 				top: 0;
@@ -342,6 +351,22 @@
 			</div>
 		</div>
 
+		<div
+			id="nodeContextMenu"
+			style="
+				display: none;
+				position: absolute;
+				background: #2a2a2a;
+				color: white;
+				border: 1px solid #444;
+				border-radius: 4px;
+				z-index: 10002;
+				font-size: 14px;
+			">
+			<div class="menu-item" onclick="selectChildrenFromMenu()">Select Children</div>
+			<div class="menu-item" onclick="selectClusterFromMenu()">Select Cluster</div>
+		</div>
+
 		<div id="textMeasurer"></div>
 
 		<script>
@@ -596,6 +621,27 @@
 
 				window.addEventListener('resize', resizeCanvas);
 
+				cy.on('cxttap', 'node', function (evt) {
+					contextNode = evt.target;
+					const menu = document.getElementById('nodeContextMenu');
+					const rect = cy.container().getBoundingClientRect();
+
+					const x = rect.left + evt.renderedPosition.x;
+					const y = rect.top + evt.renderedPosition.y;
+
+					// Position menu
+					menu.style.left = x + 'px';
+					menu.style.top = y + 'px';
+					menu.style.display = 'block';
+				});
+
+				// Hide menu if clicking elsewhere
+				cy.on('tap', function (evt) {
+					if (!evt.target.isNode || evt.target === contextNode) {
+						document.getElementById('nodeContextMenu').style.display = 'none';
+					}
+				});
+
 				cy.on('zoom', () => {
 					const zoom = cy.zoom();
 					const zoomStart = 0.5;
@@ -712,6 +758,58 @@
 					labelWidth: bestWidth,
 					nodeSize: nodeSize
 				};
+			}
+
+			function selectChildrenRecursively(node, visited = new Set()) {
+				if (visited.has(node.id())) return;
+				visited.add(node.id());
+
+				if (!selectionQueue.includes(node)) {
+					selectionQueue.push(node);
+					node.addClass('manual-selected').grabify();
+				}
+
+				node.outgoers('node').forEach((child) => {
+					selectChildrenRecursively(child, visited);
+				});
+			}
+
+			function selectClusterRecursively(node, visited = new Set()) {
+				if (visited.has(node.id())) return;
+				visited.add(node.id());
+
+				if (!selectionQueue.includes(node)) {
+					selectionQueue.push(node);
+					node.addClass('manual-selected').grabify();
+				}
+
+				// Add children
+				node.outgoers('node').forEach((child) => {
+					selectClusterRecursively(child, visited);
+				});
+
+				// Add parents
+				node.incomers('node').forEach((parent) => {
+					selectClusterRecursively(parent, visited);
+				});
+			}
+
+			let contextNode = null;
+
+			function selectChildrenFromMenu() {
+				if (contextNode) {
+					selectChildrenRecursively(contextNode);
+					saveData();
+				}
+				document.getElementById('nodeContextMenu').style.display = 'none';
+			}
+
+			function selectClusterFromMenu() {
+				if (contextNode) {
+					selectClusterRecursively(contextNode);
+					saveData();
+				}
+				document.getElementById('nodeContextMenu').style.display = 'none';
 			}
 
 			function openEditModal() {
