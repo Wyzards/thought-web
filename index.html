@@ -365,6 +365,7 @@
 			">
 			<div class="menu-item" onclick="selectChildrenFromMenu()">Select Children</div>
 			<div class="menu-item" onclick="selectClusterFromMenu()">Select Cluster</div>
+			<div class="menu-item" onclick="copySelectedTree()">Copy Selected</div>
 		</div>
 
 		<div id="textMeasurer"></div>
@@ -834,6 +835,107 @@
 					selectClusterRecursively(contextNode);
 					saveData();
 				}
+				hideContextMenu();
+			}
+
+			function copySelectedTree() {
+				// Use your manual selection class (matches how you select clusters)
+				let selectedNodes = cy.nodes('.manual-selected');
+
+				// fallback: if manual class empty, try selectionQueue (in case it's in-memory only)
+				if (selectedNodes.length === 0 && Array.isArray(selectionQueue) && selectionQueue.length) {
+					selectedNodes = cy.collection(selectionQueue);
+				}
+
+				if (selectedNodes.empty()) {
+					console.warn('No nodes selected.');
+					return;
+				}
+
+				const isSelected = (n) =>
+					n.hasClass?.('manual-selected') ||
+					selectionQueue.some((s) => s.id && s.id() === n.id && s.id() === n.id && false);
+				// note: above fallback 'isSelected' mainly relies on class; selectionQueue fallback used below for ordering
+
+				// find roots: selected nodes that don't have a selected incoming parent
+				let roots = selectedNodes.filter(
+					(n) =>
+						n.incomers('edge').filter((e) => e.source().hasClass('manual-selected')).length === 0
+				);
+
+				// if no roots (cycle or weird selection), treat all selected nodes as roots
+				if (roots.length === 0) {
+					roots = selectedNodes;
+				}
+
+				// build an ordering map from selectionQueue so we preserve user's manual order if possible
+				const orderMap = new Map();
+				if (Array.isArray(selectionQueue)) {
+					selectionQueue.forEach((n, i) => {
+						try {
+							orderMap.set(n.id(), i);
+						} catch (e) {}
+					});
+				}
+
+				const sortNodes = (a, b) => {
+					const ai = orderMap.has(a.id()) ? orderMap.get(a.id()) : Number.MAX_SAFE_INTEGER;
+					const bi = orderMap.has(b.id()) ? orderMap.get(b.id()) : Number.MAX_SAFE_INTEGER;
+					if (ai !== bi) return ai - bi;
+					const al = (a.data('label') || '').toLowerCase();
+					const bl = (b.data('label') || '').toLowerCase();
+					if (al < bl) return -1;
+					if (al > bl) return 1;
+					return 0;
+				};
+
+				const lines = [];
+				const visited = new Set();
+
+				const build = (node, depth) => {
+					if (visited.has(node.id())) return;
+					visited.add(node.id());
+
+					const label = node.data('label') || node.id();
+
+					if (depth === 0) {
+						// root as header
+						lines.push(label);
+					} else {
+						// indent children; one level = "- ", deeper levels indented
+						const indent = '  '.repeat(depth - 1);
+						lines.push(`${indent}- ${label}`);
+					}
+
+					// gather children that are selected and unique
+					let children = node
+						.outgoers('edge')
+						.map((e) => e.target())
+						.filter((t) => t.hasClass('manual-selected'));
+					// dedupe by id
+					children = children.filter(
+						(c, idx, arr) => arr.findIndex((x) => x.id() === c.id()) === idx
+					);
+
+					children.sort(sortNodes);
+					children.forEach((child) => build(child, depth + 1));
+				};
+
+				// sort roots and build
+				const rootsArr = roots.toArray();
+				rootsArr.sort(sortNodes);
+				rootsArr.forEach((r, i) => {
+					build(r, 0);
+					if (i < rootsArr.length - 1) lines.push(''); // blank line between root blocks
+				});
+
+				const result = lines.join('\n');
+
+				navigator.clipboard
+					.writeText(result)
+					.then(() => console.log('Copied tree:\n' + result))
+					.catch((err) => console.error('Clipboard copy failed', err));
+
 				hideContextMenu();
 			}
 
